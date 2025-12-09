@@ -1,0 +1,834 @@
+[
+  {
+    "parent": "ROOT",
+    "depth": 0,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products",
+    "title": "TRACTORS",
+    "description": "Massey Ferguson tractors deliver straightforward and dependable performance, comfort and uncompromising quality. Efficient, reliable engines using the latest technology work with sophisticated yet user-friendly and efficent transmissions to meet the farmer's needs and get the best from a wide range of implements, while minimising running costs and maximising uptime.",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/tractors/Groupandsubgroup_MF9S.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "ROOT",
+    "depth": 0,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products",
+    "title": "COMBINES",
+    "description": "Pioneers of combine harvester technology from the PowerFlow header to the latest precision farming equipment, the Massey Ferguson range includes models from 185-660hp. Conventional straw walker and rotor technology systems are available to match all crops and conditions.",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/combines/128A-MF-IDEAL-MY24-MASTER-CAM-9.tif/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "ROOT",
+    "depth": 0,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products",
+    "title": "BALERS",
+    "description": "Massey Ferguson round and big square balers are engineered to last and designed to pack the maximum material in each package for easier handling, storage and use. The latest technology allows operators to easily monitor and record harvest data.",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/balers/MF_2234_XD_LB_32_X_LO-RES_0031.jpg/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "COMBINES",
+    "depth": 1,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/B",
+    "title": "ROTARY",
+    "description": "With three models from 483hp to 660hp, the MF IDEAL harnesses industry leading technology to deliver more grain at the best quality, for you. Fully connected and with unique new features, these combines excel on all fronts, offering superb grain and straw quality, massive output, super-fast operation, outstanding driver comfort, total efficiency and control.",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/combines/128A-MF-IDEAL-MY24-MASTER-CAM-9.tif/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "COMBINES",
+    "depth": 1,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/B",
+    "title": "WALKERS",
+    "description": "Massey Ferguson straw-walker combines provide straightforward and dependable harvesting performance. There is a choice of models with five or six straw-walkers, with engine powers from to 185hp to 360hp and capable of harvesting with headers from 4.2m to 7.7m. The patented ParaLevel option helps maintain peak performance with auto-levelling on slopes up to 20%.",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/combines/Combines_WalkerSubgroup.jpg/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "COMBINES",
+    "depth": 1,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/B",
+    "title": "HEADERS",
+    "description": "Heads first feed – start well, finish well - your header is critical to how well your combine performs. With a lifetime of experience, Massey Ferguson offers you a choice of its premium MF PowerFlow table or high capacity MF FreeFlow table. Both provide features to boost productivity, including Automatic Reel speed and advanced table height control.",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/combines/134-IDEALMY24-MF40FTPOWERFLOWHEADER.tif/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "ROTARY",
+    "depth": 2,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/B/BB",
+    "title": "MF IDEAL",
+    "description": "With three models from 483hp to 660hp, the MF IDEAL harnesses industry leading technology to deliver more grain at the best quality, for you. Fully connected and with unique new features, these combines excel on all fronts, offering superb grain and straw quality, massive output, super-fast operation, outstanding driver comfort, total efficiency and control.",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/combines/128A-MF-IDEAL-MY24-MASTER-CAM-9.tif/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "WALKERS",
+    "depth": 2,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/B/BA",
+    "title": "MF COMBINE HARVESTERS",
+    "description": "Massey Ferguson straw-walker combines provide straightforward and dependable harvesting performance. There is a choice of models with five or six straw-walkers, with engine powers from to 176hp to 360hp and capable of harvesting with headers from 4.2m to 7.7m. The patented ParaLevel option helps maintain peak performance with auto-levelling on slopes up to 20%.",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/combines/combine.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "HEADERS",
+    "depth": 2,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/B/BF",
+    "title": "MF COMBINE HEADERS",
+    "description": "Heads first feed – start well, finish well - your header is critical to how well your combine performs. With a lifetime of experience, Massey Ferguson offers you a choice of its premium MF PowerFlow table or high capacity MF FreeFlow table.\n\nBoth provide features to boost productivity, including Automatic Reel speed and advanced table height control.",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/combines/134-IDEALMY24-MF40FTPOWERFLOWHEADER.tif/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF COMBINE HEADERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/B/BF/NU",
+    "title": "MF 480 FREEFLOW",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/combines/FREEFLOW_Models.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF COMBINE HEADERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/B/BF/NU",
+    "title": "MF 540 FREEFLOW",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/combines/FREEFLOW_Models.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF COMBINE HEADERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/B/BF/NU",
+    "title": "MF 600 FREEFLOW",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/combines/FREEFLOW_Models.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF COMBINE HEADERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/B/BF/NU",
+    "title": "MF 700 FREEFLOW",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/combines/FREEFLOW_Models.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF COMBINE HEADERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/B/BF/NU",
+    "title": "MF 760 FREEFLOW",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/combines/FREEFLOW_Models.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF COMBINE HEADERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/B/BF/NU",
+    "title": "MF 550 POWERFLOW",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/combines/POWERFLOW_Models.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF COMBINE HEADERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/B/BF/NU",
+    "title": "MF 620 POWERFLOW",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/combines/POWERFLOW_Models.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF COMBINE HEADERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/B/BF/NU",
+    "title": "MF 680 POWERFLOW",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/combines/POWERFLOW_Models.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF COMBINE HEADERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/B/BF/NU",
+    "title": "MF 770 POWERFLOW",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/combines/MF_Header_770.PNG/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF COMBINE HEADERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/B/BF/NU",
+    "title": "MF 920 POWERFLOW - SUPERFLOW",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/combines/134-IDEALMY24-MF40FTPOWERFLOWHEADER.tif/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF COMBINE HEADERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/B/BF/NU",
+    "title": "MF 1070 POWERFLOW - SUPERFLOW",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/combines/134-IDEALMY24-MF40FTPOWERFLOWHEADER.tif/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF COMBINE HEADERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/B/BF/NU",
+    "title": "MF 1220 POWERFLOW - SUPERFLOW",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/combines/134-IDEALMY24-MF40FTPOWERFLOWHEADER.tif/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF COMBINE HARVESTERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/B/BA/N3",
+    "title": "MF ACTIVA 7342",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/combines/MASSEYFERGUSONACTIVA7342-MASTERCAM.tif/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF COMBINE HARVESTERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/B/BA/N3",
+    "title": "MF ACTIVA 7343",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/combines/MASSEYFERGUSONACTIVA7343-MASTERCAM.tif/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF COMBINE HARVESTERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/B/BA/N3",
+    "title": "MF ACTIVA 7344",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/combines/MASSEYFERGUSONACTIVA7344-MASTERCAM.tif/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF COMBINE HARVESTERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/B/BA/N3",
+    "title": "MF ACTIVA S 7345",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/combines/mfactivas_7347_combine_cgi_0316_jpg_117163.jpg/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF COMBINE HARVESTERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/B/BA/N3",
+    "title": "MF ACTIVA S 7345 MCS",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/combines/mfactivas_7347_combine_cgi_0316_jpg_117163.jpg/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF COMBINE HARVESTERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/B/BA/N3",
+    "title": "MF ACTIVA S 7347",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/combines/mfactivas_7347_combine_cgi_0316_jpg_117163.jpg/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF COMBINE HARVESTERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/B/BA/N3",
+    "title": "MF ACTIVA S 7347 MCS",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/combines/mfactivas_7347_combine_cgi_0316_jpg_117163.jpg/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF COMBINE HARVESTERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/B/BA/N3",
+    "title": "MF BETA 7360",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/combines/MF_BETA_7360_7370_PL_PLI.jpg/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF COMBINE HARVESTERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/B/BA/N3",
+    "title": "MF BETA 7360 PL",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/combines/MF_BETA_7360_7370_PL_PLI.jpg/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF COMBINE HARVESTERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/B/BA/N3",
+    "title": "MF BETA 7360 PLI",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/combines/MF_BETA_7360_7370_PL_PLI.jpg/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF COMBINE HARVESTERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/B/BA/N3",
+    "title": "MF BETA 7370",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/combines/MF_BETA_7360_7370_PL_PLI.jpg/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF COMBINE HARVESTERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/B/BA/N3",
+    "title": "MF BETA 7370 PL",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/combines/MF_BETA_7360_7370_PL_PLI.jpg/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF COMBINE HARVESTERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/B/BA/N3",
+    "title": "MF BETA 7370 PLI",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/combines/MF_BETA_7360_7370_PL_PLI.jpg/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF IDEAL",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/B/BB/MIC",
+    "title": "MF IDEAL 7",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/combines/128A-MF-IDEAL-MY24-MASTER-CAM-9.tif/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF IDEAL",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/B/BB/MIC",
+    "title": "MF IDEAL 8",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/combines/128A-MF-IDEAL-MY24-MASTER-CAM-9.tif/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF IDEAL",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/B/BB/MIC",
+    "title": "MF IDEAL 9",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/combines/128A-MF-IDEAL-MY24-MASTER-CAM-9.tif/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "ROOT",
+    "depth": 0,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products",
+    "title": "HAY & FORAGE",
+    "description": "With the addition of this impressive range of MF Hay and Forage equipment to its current Tractor, Harvesting and Materials Handling portfolio, Massey Ferguson is proud to offer a full-line of equipment, including high quality, robust and energy-efficient Mowers, Conditioners, Tedders and Rakes",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/hay-&-forage/HayForage_ProductGroup.jpg/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "ROOT",
+    "depth": 0,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products",
+    "title": "MATERIAL HANDLING",
+    "description": "For fast and efficient handling, discover the latest generation MF TH Series telehandlers and MF FL Series loaders. The MF TH Series telehandlers includes a total of 6 models. The MF FL Series Loaders allows you to complement your Massey Ferguson tractor with a combination of rugged ability, hard work and reliability.",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/telehandlers/loader-and-th-v3.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "BALERS",
+    "depth": 1,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/C",
+    "title": "SMALL SQUARE",
+    "description": "The small rectangular baler employs a centre-line design in which the crops flows through the machine in a straight line - working like a mini large square baler, improving efficiency because the crop is not turned before entering the chamber.",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/balers/MF_1842S.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "HAY & FORAGE",
+    "depth": 1,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/E",
+    "title": "TRAILED/MOUNTED MOWERS",
+    "description": "Massey Ferguson’s extensive hay and forage range includes a vast selection of innovative and efficient mowers and mower conditioners that deliver high quality results in all crops and conditions.",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/hay-&-forage/MF_Mowers.gif/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MATERIAL HANDLING",
+    "depth": 1,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/K",
+    "title": "FRONT LOADERS",
+    "description": "A complete range of Massey Ferguson loaders are available to increase versatility.\nOffering no less than 29 models, with lift capacities from 1,210 kg to 3,270 kg, at heights from 3.10m to 4.96 m, depending on tractor size.",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/front-loader/MF4709M-CAB-FRONT-LH3-4LOADER.tif/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MATERIAL HANDLING",
+    "depth": 1,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/K",
+    "title": "TELESCOPIC HANDLERS",
+    "description": "For fast and efficient loading, the MF TH Series telehandlers includes models from the compact MF TH.6030, ideal for working in restricted spaces, up to the MF TH.8043 that can lift the heaviest loads. A total of six models can take loads from 3,000kg to 4,300kg to maximum heights of 5.9m to 7.5m. All are powered by 100hp or 130hp engines and have an effortless hydrostatic transmission. An optional high-performance Dyna-CT transmission is available for models MF TH.6534, MF TH.7038 and MF TH.8043.",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/telehandlers/MaterialHandling_SubGroup-2.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "FRONT LOADERS",
+    "depth": 2,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/K/KJ",
+    "title": "MF FRONT LOADER 4700M CAB",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/front-loader/MF4709M-CAB-FRONT-LH3-4LOADER.tif/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "TELESCOPIC HANDLERS",
+    "depth": 2,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/K/KB",
+    "title": "MF TH",
+    "description": "For fast and efficient loading, the MF TH Series telehandlers includes models from the compact MF TH.6030, ideal for working in restricted spaces, up to the MF TH.8043 that can lift the heaviest loads. A total of six models can take loads from 3,000kg to 4,300kg to maximum heights of 5.9m to 7.5m. All are powered by 100hp or 130hp engines and have an effortless hydrostatic transmission. An optional high-performance Dyna-CT transmission is available for models MF TH.6534, MF TH.7038 and MF TH.8043.",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/telehandlers/MaterialHandling_Series-2.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "SMALL SQUARE",
+    "depth": 2,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/C/CA",
+    "title": "MF SMALL SQUARE BALERS",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/balers/Series_mf-1840_SamllSquareBaler.jpg/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "BALERS",
+    "depth": 1,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/C",
+    "title": "LARGE SQUARE",
+    "description": "These square balers make dense, well-formed bales, and are renowned for their reliability, longevity and low cost of ownership.",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/balers/MF-LB-2234-XDimage.jpg/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "HAY & FORAGE",
+    "depth": 1,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/E",
+    "title": "TEDDERS",
+    "description": "Massey Ferguson offers a choice of 15 MF TD Tedders for fast efficient forage tedding to improve feed quality. These are available with working widths from 4.5m to 12.7m, with four to ten rotors and, depending on the model, with five, six or seven tine bars. All are simple and easy to set-up and adjust. Synchronised lifting of outer rotors, a central hydraulic lift system with pressure cylinders ease operation help maintain optimum performance – even on slopes.",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/hay-&-forage/MF_Tedders.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "TRAILED/MOUNTED MOWERS",
+    "depth": 2,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/E/EA",
+    "title": "MF DISC MOWERS",
+    "description": "Massey Ferguson offers a vast choice of front- and rear-mounted, trailed and butterfly folding mowers with a choice of tine or roller conditioners. Suitable for contractor or farmer users, these come with a range of mounting and folding systems in widths from 1.66m to 3.62m and from 8.3m and 9.3m for the butterfly versions.",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/hay-&-forage/Model_MF_DM_316_FQ-KC.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF SMALL SQUARE BALERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/C/CA/GMS",
+    "title": "MF SB 1840",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/balers/Series_mf-1840_SamllSquareBaler.jpg/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF SMALL SQUARE BALERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/C/CA/GMS",
+    "title": "MF SB 1842S",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/balers/MF_1842S.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF DISC MOWERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/E/EA/GMD",
+    "title": "MF DM 164-287 FARMER",
+    "description": "Farmer Series",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/hay-&-forage/MF_DM_164-287_Models.jpg/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF DISC MOWERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/E/EA/GMD",
+    "title": "MF DM 246-287 ISL",
+    "description": "Farmer Series ISL",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/hay-&-forage/MF_DM_246_328.jpg/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF DISC MOWERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/E/EA/GMD",
+    "title": "MF DM 255-357 P",
+    "description": "Rear attachment, side suspension, Pairwise",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/hay-&-forage/MF_DM_255-357_P.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF DISC MOWERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/E/EA/GMD",
+    "title": "MF DM 265 TL-V",
+    "description": "Rear attachment, Three Point Vertical",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/hay-&-forage/MF_DM_TLV.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF DISC MOWERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/E/EA/GMD",
+    "title": "MF DM 306 TR",
+    "description": "Trailed With Transport Chassis",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/hay-&-forage/MF_DM_306_TR_Models.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF DISC MOWERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/E/EA/GMD",
+    "title": "MF DM 306-316 FP",
+    "description": "Front Mounted Headstock",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/hay-&-forage/MF_DM_306_316_FP.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF DISC MOWERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/E/EA/GMD",
+    "title": "MF DM 316 FQ",
+    "description": "Front Mower with 3 Dimensional",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/hay-&-forage/Model_MF_DM_316_FQ-KC.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF DISC MOWERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/E/EA/GMD",
+    "title": "MF DM 316 TL-V",
+    "description": "Rear attachment, Three Point Vertical",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/hay-&-forage/MF_DM_TLV.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF DISC MOWERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/E/EA/GMD",
+    "title": "MF DM 367 TL-V",
+    "description": "Rear attachment, Three Point Vertical",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/hay-&-forage/MF_DM_TLV.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF DISC MOWERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/E/EA/GMD",
+    "title": "MF DM 8612 TL",
+    "description": "Butterfly",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/hay-&-forage/MF_DM_8612_TL.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF DISC MOWERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/E/EA/GMD",
+    "title": "MF DM 9614-10114 TL KC/RC",
+    "description": "Butterfly",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/hay-&-forage/MF_DM_9314_TL-KC.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF DISC MOWERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/E/EA/GMD",
+    "title": "MF DM 9614-10114 TL KCB/RCB",
+    "description": "Butterfly Conveyor ISO",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/hay-&-forage/MF_DM_9614TL-KCB-PRO_02_v2.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF TH",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/K/KB/V0",
+    "title": "MFTH.6030H",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/telehandlers/MaterialHandling_Series-2.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF TH",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/K/KB/V0",
+    "title": "MFTH.6534H",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/telehandlers/MaterialHandling_Series-2.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF TH",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/K/KB/V0",
+    "title": "MFTH.6534DCT",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/telehandlers/MaterialHandling_Series-2.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF TH",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/K/KB/V0",
+    "title": "MFTH.7030H",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/telehandlers/MaterialHandling_Series-2.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF TH",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/K/KB/V0",
+    "title": "MFTH.7035H",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/telehandlers/MaterialHandling_Series-2.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF TH",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/K/KB/V0",
+    "title": "MFTH.7038H",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/telehandlers/MaterialHandling_Series-2.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF TH",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/K/KB/V0",
+    "title": "MFTH.7038DCT",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/telehandlers/MaterialHandling_Series-2.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF TH",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/K/KB/V0",
+    "title": "MFTH.8043H",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/telehandlers/MaterialHandling_Series-2.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF TH",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/K/KB/V0",
+    "title": "MFTH.8043DCT",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/telehandlers/MaterialHandling_Series-2.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "TEDDERS",
+    "depth": 2,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/E/EC",
+    "title": "MF TEDDERS",
+    "description": "Massey Ferguson offers a choice of 15 MF TD Tedders for fast efficient forage tedding to improve feed quality. These are available with working widths from 4.5m to 12.7m, with four to ten rotors and six or seven rotors, depending on model.\n\nAll are simple and easy to set-up and adjust. Synchronised lifting of outer rotors, a central hydraulic lift system with pressure cylinders ease operation help maintain optimum performance – even on slopes.",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/hay-&-forage/MF_Tedders.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF FRONT LOADER 4700M CAB",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/K/KJ/L6",
+    "title": "MF FL.3615DM",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/front-loader/MF4709M-CAB-FRONT-LH3-4LOADER.tif/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF FRONT LOADER 4700M CAB",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/K/KJ/L6",
+    "title": "MF FL.3817DM",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/front-loader/MF4709M-CAB-FRONT-LH3-4LOADER.tif/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF FRONT LOADER 4700M CAB",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/K/KJ/L6",
+    "title": "MF FL.3416XDM",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/front-loader/MF4709M-CAB-FRONT-LH3-4LOADER.tif/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "HAY & FORAGE",
+    "depth": 1,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/E",
+    "title": "RAKES",
+    "description": "A huge choice of single, two- and four-rotor rakes in the new high performance Massey Ferguson RK Series includes mounted or trailed models, so users can select exactly the right machine for their crops, area and tractor power.",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/hay-&-forage/Neue-Mittelschwader-Design-MF.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "BALERS",
+    "depth": 1,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/C",
+    "title": "ROUND",
+    "description": "An extremely reliable and high performing range of baler models tailored to your specific needs producing high density hay, silage or straw bales, while remain simple, easy to set up and adjust.",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/balers/MF3130_F_CGI_Solo_round_baler.tif/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF TEDDERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/E/EC/GMT",
+    "title": "MF TD 454-868 DN",
+    "description": "3 point linkage",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/hay-&-forage/HayForage_TeddersModels.jpg/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF TEDDERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/E/EC/GMT",
+    "title": "MF TD 776X-1110 DN",
+    "description": "3 Point Linkage",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/hay-&-forage/MF_TD_1110DN.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF TEDDERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/E/EC/GMT",
+    "title": "MF TD 1028X-1310X TRC",
+    "description": "Trailed With transp. Chassis Hook Tines",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/hay-&-forage/MF_TD_1028X_TRC.jpg/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF TEDDERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/E/EC/GMT",
+    "title": "MF TD 776-868 TRC",
+    "description": "Trailed, With Transport chassis",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/hay-&-forage/MF_TD_776-868_TRC.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "LARGE SQUARE",
+    "depth": 2,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/C/CB",
+    "title": "MF LARGE SQUARE BALERS",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/balers/MF-LB-2234-XDimage.jpg/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "BALERS",
+    "depth": 1,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/C",
+    "title": "BALER WRAPPER COMBINATIONS",
+    "description": "Massey Ferguson RB Protec combines all the benefits of a chamber baler with the addition of an integrated wrapper device for baling and wrapping on the go. Bales are instantly protected from changeable weather and forage quality is preserved.",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/balers/SubGroup_BaleWrapperCombination_MF4160V_32_X_FRAME_ROTATE_0024.jpg/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "ROUND",
+    "depth": 2,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/C/CD",
+    "title": "MF 3100 F ROUND BALERS",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/balers/MF3130_F_CGI_Solo_round_baler.tif/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF LARGE SQUARE BALERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/C/CB/GMB",
+    "title": "MF LB 2233",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/balers/MF-LB-2234-XDimage.jpg/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF LARGE SQUARE BALERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/C/CB/GMB",
+    "title": "MF LB 2224",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/balers/MF-LB-2234-XDimage.jpg/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF LARGE SQUARE BALERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/C/CB/GMB",
+    "title": "MF LB 2234",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/balers/MF-LB-2234-XDimage.jpg/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF LARGE SQUARE BALERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/C/CB/GMB",
+    "title": "MF LB 2244",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/balers/MF-LB-2234-XDimage.jpg/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "BALER WRAPPER COMBINATIONS",
+    "depth": 2,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/C/CE",
+    "title": "MF 3100 F PROTEC",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/balers/mf-rb-f-protec-front-3-4.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "BALER WRAPPER COMBINATIONS",
+    "depth": 2,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/C/CE",
+    "title": "MF 4100 V PROTEC",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/balers/SubGroup_BaleWrapperCombination_MF4160V_32_X_FRAME_ROTATE_0024.jpg/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "RAKES",
+    "depth": 2,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/E/EE",
+    "title": "MF RAKES",
+    "description": "A huge choice of single, two- and four-rotor rakes in the new high performance Massey Ferguson RK Series includes mounted or trailed models, so users can select exactly the right machine for their crops, area and tractor power.",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/hay-&-forage/Neue-Mittelschwader-Design-MF.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF 3100 F PROTEC",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/C/CE/MC3",
+    "title": "MF 3130 F PROTEC",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/balers/mf-rb-f-protec-front-3-4.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF 4100 V PROTEC",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/C/CE/MC4",
+    "title": "MF 4160 V PROTEC",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/balers/SubGroup_BaleWrapperCombination_MF4160V_32_X_FRAME_ROTATE_0024.jpg/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "ROUND",
+    "depth": 2,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/C/CD",
+    "title": "MF 4100 V ROUND BALERS",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/balers/MF_RB_4100v.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF 3100 F ROUND BALERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/C/CD/MR3",
+    "title": "MF 3130 F",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/balers/MF3130_F_CGI_Solo_round_baler.tif/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF RAKES",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/E/EE/GMR",
+    "title": "MF RK 662-772 SD TRC",
+    "description": "Transp. Chassis Sid. Swath delivery 2 R",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/hay-&-forage/MF_RK_662_SD_TRC.jpg/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF RAKES",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/E/EE/GMR",
+    "title": "MF RK 662-762-862-922-1002 TRC",
+    "description": "Transp. Chassis, Side Swath delivery 2 R",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/hay-&-forage/MF_RK_802_TRC.jpg/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF RAKES",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/E/EE/GMR",
+    "title": "MF RK 842 SD TRC",
+    "description": "Transp. Chassis, Side Swath delivery 2 R",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/hay-&-forage/MF_RK_842_SD_TRC.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF RAKES",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/E/EE/GMR",
+    "title": "MF RK 341-451 DN",
+    "description": "Three Point Linkage, Float. Headstock",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/hay-&-forage/MF_RK_341_DN.jpg/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF RAKES",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/E/EE/GMR",
+    "title": "MF RK 1254 TRC",
+    "description": "Trans.Chassis, Cent. Swath delivery 4 R",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/hay-&-forage/MF_RK_1254_TRC_GEn2.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF RAKES",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/E/EE/GMR",
+    "title": "MF RK 1404 TRC-PRO",
+    "description": "Trans. Chassis Cent.Swath delivery, 4 R",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/hay-&-forage/MF_RK_1404_TRC_PRO_Gen2.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF 4100 V ROUND BALERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/C/CD/MR4",
+    "title": "MF RB 4160 V",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/balers/MF_RB_4100v.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  },
+  {
+    "parent": "MF 4100 V ROUND BALERS",
+    "depth": 3,
+    "url": "https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products/C/CD/MR4",
+    "title": "MF RB 4180 V",
+    "description": "",
+    "image": "https://dam.agcocorp.com/content/dam/multisite/massey-ferguson/marketing/multi-region/images/machinery---studio-&-cgi/balers/MF_RB_4100v.png/jcr:content/renditions/cq5dam.thumbnail.500.10000.png"
+  }
+]
