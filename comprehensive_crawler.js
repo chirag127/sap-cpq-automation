@@ -4,37 +4,41 @@ const fs = require('fs');
 // --- CONFIGURATION ---
 const BASE_URL = 'https://cpq.agcocorp.com/agco/customer/en_GB/configurator';
 const OUTPUT_FILE = 'agco_full_dump.json';
-const MAX_DEPTH = 6; // Hard stop to prevent infinite loops
+const MAX_DEPTH = 6;
 
 // --- STATE MANAGEMENT ---
 let fullData = [];
-let visitedUrls = new Set(); // Tracks visited pages to prevent cycles
+let visitedUrls = new Set();
 
 async function scrape() {
-    console.log("🤖 Launching Smart Scraper V2...");
+    console.log("🤖 Launching Scraper V3 (Broad Selectors)...");
 
     const browser = await puppeteer.launch({
-        headless: false, // Keep false to monitor progress
+        headless: false,
         defaultViewport: null,
         args: ['--start-maximized']
     });
 
     const page = await browser.newPage();
+    // Increase default timeout to 60s for slow assets
+    page.setDefaultNavigationTimeout(60000);
 
-    // 1. HELPER: Wait for SPA to settle
+    // 1. HELPER: Robust Wait
     const waitForAngular = async () => {
         try {
-            await page.waitForSelector('.loader-container', { hidden: true, timeout: 4000 });
-        } catch (e) { /* Loader didn't appear or stuck, moving on */ }
-        await new Promise(r => setTimeout(r, 800)); // Small debounce for stability
+            // Wait for spinner to disappear
+            await page.waitForSelector('.loader-container', { hidden: true, timeout: 5000 });
+        } catch (e) {}
+        // Hard wait for grid to paint
+        await new Promise(r => setTimeout(r, 2000));
     };
 
-    // 2. HELPER: Kill Cookie Banner
+    // 2. HELPER: Kill Cookies
     const handleCookies = async () => {
         try {
             const btn = await page.$('#truste-consent-button');
             if (btn) {
-                console.log('🍪 Smashing Cookie Banner...');
+                console.log('🍪 Clicking Cookie Banner...');
                 await btn.click();
                 await waitForAngular();
             }
@@ -42,150 +46,123 @@ async function scrape() {
     };
 
     try {
-        console.log(`🚀 Navigating to Home: ${BASE_URL}`);
-        await page.goto(BASE_URL, { waitUntil: 'networkidle2' });
+        console.log(`🚀 Navigating to Home...`);
+        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
         await waitForAngular();
         await handleCookies();
 
-        // Start Scraping
         await scrapeLevel(page, 'Home', 0);
 
     } catch (err) {
         console.error("❌ CRITICAL ERROR:", err);
     } finally {
         fs.writeFileSync(OUTPUT_FILE, JSON.stringify(fullData, null, 2));
-        console.log(`\n✅ DONE! Saved ${fullData.length} items to ${OUTPUT_FILE}`);
+        console.log(`\n✅ DONE! Saved ${fullData.length} items.`);
         await browser.close();
     }
 }
 
 /**
- * Recursive Scraper with Loop Protection
+ * Recursive Scraper
  */
 async function scrapeLevel(page, parentName, depth) {
     const currentUrl = page.url();
 
-    // --- STOP CONDITIONS ---
     if (depth >= MAX_DEPTH) {
-        console.log(`   🛑 Max depth (${MAX_DEPTH}) reached. Stopping recursion.`);
+        console.log(`   🛑 Max depth reached.`);
         return;
     }
 
-    // Cycle Detection: If we've scraped this exact URL at this depth before, stop.
-    // (We include depth in key because sometimes you go back to Home)
     const stateKey = `${currentUrl}::${depth}`;
-    if (visitedUrls.has(stateKey)) {
-        console.log(`   🔄 Cycle detected at ${parentName}. Skipping.`);
-        return;
-    }
+    if (visitedUrls.has(stateKey)) return;
     visitedUrls.add(stateKey);
 
     console.log(`\n📂 [Level ${depth}] Scanning: "${parentName}"`);
 
-    // --- IDENTIFY CARDS ---
-    let cardSelector = '';
-    if (await page.$('.brand-card-group')) {
-        cardSelector = '.brand-card-group'; // Home Page
-    } else if (await page.$('app-cpq-product-card')) {
-        cardSelector = 'app-cpq-product-card'; // Inner Pages
-    } else {
-        console.log("   📝 No standard cards found. Likely a Leaf Page (Config).");
+    // --- BROAD SELECTOR STRATEGY ---
+    // We try multiple selectors to find *anything* clickable
+    const possibleSelectors = [
+        '.brand-card-group',        // Home Page
+        'app-cpq-product-card',     // Product Cards
+        '.product-item',            // Generic List
+        '.category-tile',           // Category Tiles
+        '.card'                     // Fallback
+    ];
+
+    let validSelector = '';
+    for (const sel of possibleSelectors) {
+        if (await page.$(sel)) {
+            validSelector = sel;
+            break;
+        }
+    }
+
+    if (!validSelector) {
+        console.log("   📝 No known cards found. Taking debug screenshot...");
+        await page.screenshot({ path: `debug_level_${depth}_${parentName}.png` });
         return;
     }
 
     // --- COLLECT ITEMS ---
-    const cards = await page.$$(cardSelector);
-    console.log(`   Found ${cards.length} items.`);
+    const cards = await page.$$(validSelector);
+    console.log(`   Found ${cards.length} items using selector: "${validSelector}"`);
 
-    // If 0 items, stop
-    if (cards.length === 0) return;
-
-    // --- PROCESS ITEMS LOOP ---
+    // --- LOOP ITEMS ---
     for (let i = 0; i < cards.length; i++) {
-        // Refresh DOM elements (SPA Refresh)
-        let freshCards = await page.$$(cardSelector);
+        // Refresh DOM
+        await waitForAngular();
+        let freshCards = await page.$$(validSelector);
         let card = freshCards[i];
         if (!card) continue;
 
         // Extract Data
-        let data = await page.evaluate((el, sel) => {
-            let title = "Unknown";
-            let desc = "";
-            let img = "";
+        let data = await page.evaluate((el) => {
+            // Try to find text in standard places
+            const tEl = el.querySelector('.card-title') || el.querySelector('h4') || el.querySelector('h3');
+            const imgEl = el.querySelector('img');
 
-            if (sel.includes('brand')) {
-                const imgEl = el.querySelector('img');
-                title = imgEl ? imgEl.alt : "Brand";
-                img = imgEl ? imgEl.src : "";
-            } else {
-                const tEl = el.querySelector('.card-title');
-                const dEl = el.querySelector('.card-text');
-                const iEl = el.querySelector('img');
-                if (tEl) title = tEl.innerText.trim();
-                if (dEl) desc = dEl.innerText.trim();
-                if (iEl) img = iEl.src;
-            }
-            return { title, desc, img };
-        }, card, cardSelector);
+            let title = tEl ? tEl.innerText.trim() : "";
+            // Fallback: Use Image Alt text if no title (Home page brands)
+            if (!title && imgEl) title = imgEl.alt;
 
-        // Filter out empty garbage
-        if (!data.title) continue;
+            return { title: title || "Unknown Item" };
+        }, card);
 
-        console.log(`   👉 [${i+1}/${cards.length}] Item: ${data.title}`);
+        console.log(`   👉 [${i+1}/${cards.length}] Processing: ${data.title}`);
 
-        // SAVE DATA
-        fullData.push({
-            level: depth,
-            parent: parentName,
-            ...data,
-            url: page.url()
-        });
+        // Add to data
+        fullData.push({ level: depth, parent: parentName, ...data });
 
-        // --- RECURSION LOGIC ---
-        // We only click if it's NOT a leaf node (Model).
-        // Models usually have checkboxes. Categories don't.
-        const hasCheckbox = await card.$('input[type="checkbox"]');
+        // --- CLICK & RECURSE ---
+        // Check for checkbox (Leaf node indicator)
+        const isLeaf = await card.$('input[type="checkbox"]');
 
-        if (!hasCheckbox) {
+        if (!isLeaf) {
             try {
-                // Pre-click URL check
-                const urlBefore = page.url();
+                // Click Logic
+                const clickable = await card.$('img') || card; // Click image if present, else card
+                await clickable.click();
 
-                // CLICK
-                const clickTarget = (cardSelector.includes('brand')) ? await card.$('img') : card;
-                if (clickTarget) {
-                    await clickTarget.click();
-
-                    // Wait for Loading
-                    try {
-                        await page.waitForSelector('.loader-container', { hidden: true, timeout: 3000 });
-                    } catch(e){}
-
-                    // Post-click URL check
-                    const urlAfter = page.url();
-
-                    // SMART CHECK: Did we actually move?
-                    // If URL is same, and we are deep (Level 3+), it's likely a leaf node
-                    // or a "Filter" update, not a new page.
-                    if (urlBefore === urlAfter && depth > 2) {
-                        console.log("      (URL didn't change. Treating as leaf node.)");
-                    } else {
-                        // Recurse deeper
-                        await scrapeLevel(page, data.title, depth + 1);
-
-                        // GO BACK
-                        console.log("      ⬅️ Going Back...");
-                        await page.goBack({ waitUntil: 'networkidle2' });
-                        try {
-                            await page.waitForSelector('.loader-container', { hidden: true, timeout: 3000 });
-                        } catch(e){}
-                    }
+                // Wait for navigation
+                try {
+                    await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 10000 });
+                } catch(e) {
+                    await waitForAngular(); // Just wait for Angular if no nav event
                 }
+
+                // Recurse
+                await scrapeLevel(page, data.title, depth + 1);
+
+                // Go Back
+                console.log("      ⬅️ Back...");
+                await page.goBack({ waitUntil: 'domcontentloaded' });
+                await waitForAngular();
+
             } catch (err) {
-                console.log(`      ⚠️ Error clicking ${data.title}: ${err.message}`);
+                console.log(`      ⚠️ Click failed: ${err.message}`);
             }
         } else {
-            console.log("      (Checkbox detected. This is a Model. Saved & Skipped drill-down.)");
+            console.log("      (Leaf Node Detected - Skipping click)");
         }
     }
 }
