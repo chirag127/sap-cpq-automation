@@ -141,3 +141,4 @@ vite.config.ts.timestamp-*
 .vite/
 package-lock.json
 debug_error.png
+Full_CPQ_Data_CS.txt
