@@ -2,31 +2,21 @@ const puppeteer = require('puppeteer');
 const fs = require('fs');
 
 // --- CONFIGURATION ---
-const OUTPUT_FILE = 'Final_Clean_Data_CS.txt';
-// We focus on Massey first to ensure success
 const TARGET_URL = "https://cpq.agcocorp.com/masseyferguson/customer/en_gb/wholegoods/products";
+const OUTPUT_FILE = 'Massey_Data_Clean.json';
 
-// --- SELECTORS ---
 const SELECTORS = {
-    // Cookie Banner (The Enemy)
-    cookieBanner: '#onetrust-banner-sdk, .truste_box_overlay, .cookie-banner, #trustarc-banner',
+    // Broad selectors to catch ANY type of tile
+    gridTile: '.product-item, .category-tile, .card, div[class*="tile"], div[class*="product"], app-category-card',
 
-    // Grid Items (Categories & Products)
-    gridItem: '.product-item, .category-tile, .card, div[class*="tile"], div[class*="product"]',
-
-    // Data Extraction
-    // We ignore the first H1 if it looks like a banner
-    title: 'h1.product-title, h1.title, .hero-text h1',
-    desc: '.description, .product-description, #description',
-    specs: '.specifications, table.tech-specs'
+    // Cookie Banners to destroy
+    overlays: '#onetrust-banner-sdk, .truste_box_overlay, .cookie-banner, .modal-backdrop, .cdk-overlay-container'
 };
 
 (async () => {
-    console.log("=================================================");
-    console.log("   SAP CPQ 'DEEP DRILL' SCRAPER - ADMIN: CS");
-    console.log("=================================================");
-
-    fs.writeFileSync(OUTPUT_FILE, "BRAND;CATEGORY;PRODUCT;DESCRIPTION;SPECS\n"); // CSV-like Header
+    console.log("------------------------------------------------");
+    console.log("   SAP CPQ SCRAPER V2 (SMART WAIT EDITION)");
+    console.log("------------------------------------------------");
 
     const browser = await puppeteer.launch({
         headless: false,
@@ -35,116 +25,132 @@ const SELECTORS = {
     });
 
     const page = await browser.newPage();
-    page.setDefaultNavigationTimeout(0); // Infinite timeout
+    page.setDefaultNavigationTimeout(0); // No timeout
 
-    console.log(`[1] Navigating to Massey Ferguson Catalog...`);
+    // 1. NAVIGATE
+    console.log(`[1] Navigating to Catalog...`);
     await page.goto(TARGET_URL, { waitUntil: 'domcontentloaded' });
-    await waitForAngular(page);
 
-    // --- PHASE 1: KILL COOKIES ---
-    await killCookieBanner(page);
+    // 2. NUKE BANNERS (Immediate CSS Injection)
+    await page.addStyleTag({ content: `${SELECTORS.overlays} { display: none !important; visibility: hidden !important; pointer-events: none !important; }` });
 
-    // --- PHASE 2: GET CATEGORIES (Level 1) ---
-    // e.g., Tractors, Combines, Balers
-    const categories = await getGridItems(page);
-    console.log(`>>> Found ${categories.length} Main Categories.`);
+    // 3. SMART WAIT (The Fix)
+    console.log("    ...Waiting for grid text ('TRACTORS') to appear...");
+    try {
+        // Wait up to 30s for the specific text that confirms the grid is ready
+        await page.waitForFunction(() =>
+            document.body.innerText.includes("TRACTORS") ||
+            document.body.innerText.includes("COMBINES"),
+            { timeout: 30000 }
+        );
+        console.log("    >>> GRID DETECTED!");
+    } catch (e) {
+        console.log("    !!! TIMEOUT: Grid didn't load. Saving screenshot...");
+        await page.screenshot({ path: 'debug_failure.png' });
+        console.log("    (Check 'debug_failure.png' to see what happened)");
+        await browser.close();
+        return;
+    }
 
-    for (let i = 0; i < categories.length; i++) {
-        // RE-FRESH DOM
-        await killCookieBanner(page);
-        const currentCats = await getGridItems(page);
-        const catElement = currentCats[i];
+    // 4. GET CATEGORIES
+    const categoryNames = await getTileNames(page);
+    console.log(`>>> Found Categories: ${categoryNames.join(', ')}`);
 
-        if (!catElement) continue;
+    let allData = [];
 
-        const catName = await page.evaluate(el => el.innerText.split('\n')[0], catElement);
-        console.log(`\n=== ENTERING CATEGORY: ${catName} ===`);
+    // --- LOOP CATEGORIES ---
+    for (const catName of categoryNames) {
+        if (catName.toUpperCase().includes("PRIVACY") || catName.length < 3) continue;
 
-        // CLICK LEVEL 1
-        await catElement.click();
-        await waitForAngular(page);
-        await killCookieBanner(page); // Kill it again if it reappears
+        console.log(`\n=== PROCESSING: ${catName} ===`);
 
-        // --- PHASE 3: GET PRODUCTS (Level 2) ---
-        // e.g., MF 4700, MF 5700
-        const products = await getGridItems(page);
-        console.log(`   >>> Found ${products.length} Series/Products in ${catName}.`);
+        // A. Click Category
+        const clicked = await clickTileByText(page, catName);
+        if (!clicked) continue;
 
-        for (let j = 0; j < products.length; j++) {
-            const currentProds = await getGridItems(page); // Refresh DOM
-            const prodElement = currentProds[j];
+        // B. Wait for Products (Look for "Series" or "MF")
+        await new Promise(r => setTimeout(r, 4000));
+        await page.addStyleTag({ content: `${SELECTORS.overlays} { display: none !important; }` });
 
-            if (!prodElement) continue;
+        // C. Get Products
+        const productNames = await getTileNames(page);
 
-            const prodName = await page.evaluate(el => el.innerText.split('\n')[0], prodElement);
-            console.log(`      [${j+1}/${products.length}] Scraping: ${prodName}`);
+        // Validating we actually moved
+        if (JSON.stringify(productNames) === JSON.stringify(categoryNames)) {
+            console.log("    (Navigation failed, still on main menu. Skipping.)");
+            continue;
+        }
 
-            // CLICK LEVEL 2 (Enter Product Detail)
-            await prodElement.click();
+        console.log(`    >>> Found Products: ${productNames.length} items`);
 
-            // Wait for Title (Ensure we are on detail page)
-            try {
-                await page.waitForSelector('h1', { timeout: 10000 });
-            } catch(e) {}
+        // --- LOOP PRODUCTS ---
+        for (const prodName of productNames) {
+            // Filter noise
+            if (prodName.includes("Back") || prodName.includes("Privacy")) continue;
 
-            // SCRAPE
+            console.log(`       -> Scraping: ${prodName}`);
+
+            const prodClicked = await clickTileByText(page, prodName);
+            if (!prodClicked) continue;
+
+            // Wait for Details (H1)
+            try { await page.waitForSelector('h1', { timeout: 8000 }); } catch(e) {}
+
+            // Scrape
             const data = await page.evaluate(() => {
-                const getT = (s) => document.querySelector(s)?.innerText.replace(/\s+/g, ' ').trim() || "";
-                // Try specific title first, fallback to generic h1, ignore generic words
-                let t = getT('h1.product-title');
-                if (!t) t = getT('h1');
-                if (t.includes("PRIVACY") || t.includes("Cookie")) t = "Unknown Product";
-
+                const txt = (s) => document.querySelector(s)?.innerText.trim() || "";
                 return {
-                    t: t,
-                    d: getT('.description') || getT('#description'),
-                    s: getT('.specifications')
+                    name: txt('h1'),
+                    desc: txt('.description') || txt('#description'),
+                    specs: txt('.specifications') || txt('table')
                 };
             });
 
-            // SAVE TO FILE
-            // Format: Massey Ferguson || Tractors || MF 4700 || Desc... || Specs...
-            const safeRow = `Massey Ferguson||${catName}||${data.t}||${data.d}||${data.s}\n`;
-            fs.appendFileSync(OUTPUT_FILE, safeRow);
-            console.log(`      [SAVED] ${data.t}`);
+            if (data.name) {
+                console.log(`          [OK] ${data.name.substring(0, 30)}...`);
+                allData.push({
+                    brand: "Massey Ferguson",
+                    category: catName,
+                    product: data.name,
+                    description: data.desc,
+                    specs: data.specs
+                });
+            }
 
-            // GO BACK TO LEVEL 2 LIST
-            await page.goBack({ waitUntil: 'domcontentloaded' });
-            await waitForAngular(page);
-            await new Promise(r => setTimeout(r, 1000));
+            // Back to Product List
+            await page.goBack();
+            await new Promise(r => setTimeout(r, 2000));
+            await page.addStyleTag({ content: `${SELECTORS.overlays} { display: none !important; }` });
         }
 
-        // GO BACK TO LEVEL 1 LIST (Main Catalog)
-        console.log(`=== FINISHED CATEGORY: ${catName}. Going up... ===`);
-        await page.goBack({ waitUntil: 'domcontentloaded' });
-        await waitForAngular(page);
-        await new Promise(r => setTimeout(r, 2000));
+        // Back to Main Menu
+        console.log(`    (Returning to Categories...)`);
+        await page.goto(TARGET_URL, { waitUntil: 'domcontentloaded' });
+        await new Promise(r => setTimeout(r, 3000));
+        await page.addStyleTag({ content: `${SELECTORS.overlays} { display: none !important; }` });
     }
 
-    console.log("\nDONE! Run the Python script now.");
+    fs.writeFileSync(OUTPUT_FILE, JSON.stringify(allData, null, 2));
+    console.log(`\nDONE! Saved to ${OUTPUT_FILE}`);
     await browser.close();
 })();
 
 // --- HELPERS ---
-
-async function getGridItems(page) {
-    // Wait for grid
-    try {
-        await page.waitForSelector(SELECTORS.gridItem, { timeout: 5000 });
-    } catch(e) {}
-    return await page.$$(SELECTORS.gridItem);
+async function getTileNames(page) {
+    return await page.evaluate((sel) => {
+        const tiles = Array.from(document.querySelectorAll(sel));
+        return tiles.map(t => t.innerText.split('\n')[0].trim()).filter(t => t.length > 0);
+    }, SELECTORS.gridTile);
 }
 
-async function waitForAngular(page) {
-    try {
-        await page.waitForSelector('.loader', { hidden: true, timeout: 5000 });
-    } catch(e) {}
-    await new Promise(r => setTimeout(r, 1500)); // Pause for rendering
-}
-
-async function killCookieBanner(page) {
-    await page.evaluate((sel) => {
-        const banners = document.querySelectorAll(sel);
-        banners.forEach(b => b.remove()); // Delete it from DOM
-    }, SELECTORS.cookieBanner);
+async function clickTileByText(page, text) {
+    return await page.evaluate((sel, txt) => {
+        const tiles = Array.from(document.querySelectorAll(sel));
+        const target = tiles.find(t => t.innerText.includes(txt));
+        if (target) {
+            target.click();
+            return true;
+        }
+        return false;
+    }, SELECTORS.gridTile, text);
 }
