@@ -1,0 +1,23 @@
+{
+  "name": "configuratorx-full-stack-sap-cpq-development-and-scripting-suite",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chirag127/ConfiguratorX-Full-Stack-SAP-CPQ-Development-And-Scripting-Suite.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/chirag127/ConfiguratorX-Full-Stack-SAP-CPQ-Development-And-Scripting-Suite/issues"
+  },
+  "homepage": "https://github.com/chirag127/ConfiguratorX-Full-Stack-SAP-CPQ-Development-And-Scripting-Suite#readme",
+  "dependencies": {
+    "puppeteer": "^24.32.1"
+  }
+}
