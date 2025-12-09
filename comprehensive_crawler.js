@@ -3,78 +3,98 @@ const fs = require('fs');
 
 // --- CONFIGURATION ---
 const BASE_URL = 'https://cpq.agcocorp.com/agco/customer/en_GB/configurator';
-const OUTPUT_FILE = 'agco_parallel_dump.json';
-const MAX_CONCURRENCY = 5; // Number of simultaneous tabs (Don't go over 8)
+const OUTPUT_FILE = 'agco_swarm_dump.json';
+const MAX_CONCURRENCY = 10; // 10 Browsers at once!
 const MAX_DEPTH = 6;
 
-// --- SHARED STATE ---
-const queue = [];           // URLs waiting to be scraped
-const results = [];         // Final data
-const visited = new Set();  // Deduplication
-let activeWorkers = 0;      // Count of tabs currently busy
+// --- COLORS ---
+const CLR = {
+    Reset: "\x1b[0m",
+    Red: "\x1b[31m",
+    Green: "\x1b[32m",
+    Yellow: "\x1b[33m",
+    Blue: "\x1b[34m",
+    Cyan: "\x1b[36m"
+};
 
-// --- MAIN ORCHESTRATOR ---
+// --- SHARED STATE ---
+const queue = [];
+const results = [];
+const visited = new Set();
+let activeWorkers = 0;
+
+// --- HELPERS ---
+const wait = (ms) => new Promise(r => setTimeout(r, ms));
+
+async function waitForAngular(page) {
+    try {
+        await page.waitForSelector('.loader-container', { hidden: true, timeout: 2000 });
+    } catch(e) {}
+    await wait(200); // Fast debounce
+}
+
+// --- MAIN ---
 (async () => {
-    console.log(`🚀 Launching Parallel Scraper with ${MAX_CONCURRENCY} workers...`);
+    console.log(`${CLR.Green}==================================================${CLR.Reset}`);
+    console.log(`${CLR.Green}   🚀 LAUNCHING THE SWARM (${MAX_CONCURRENCY} WORKERS)   ${CLR.Reset}`);
+    console.log(`${CLR.Green}==================================================${CLR.Reset}`);
 
     const browser = await puppeteer.launch({
-        headless: false, // Keep visible to monitor
+        headless: false,
         defaultViewport: null,
-        args: ['--start-maximized'],
-        protocolTimeout: 0 // Prevent timeouts
+        protocolTimeout: 0,
+        args: ['--start-maximized', '--disable-notifications']
     });
 
-    // 1. Initialize Workers (Tabs)
+    // 1. Initialize Workers
     const workers = [];
     for (let i = 0; i < MAX_CONCURRENCY; i++) {
         const page = await browser.newPage();
-        // Optimize page for speed
+
+        // TURBO MODE: Block EVERYTHING visual
         await page.setRequestInterception(true);
         page.on('request', (req) => {
-            // Block fonts/images to speed up loading
-            if (['font', 'image'].includes(req.resourceType())) req.abort();
+            const type = req.resourceType();
+            if (['image', 'font', 'stylesheet', 'media', 'other'].includes(type)) req.abort();
             else req.continue();
         });
+
         workers.push({ id: i + 1, page });
     }
 
-    // 2. Setup Initial Queue (Home Page)
+    // 2. Start
     queue.push({ url: BASE_URL, depth: 0, parent: "ROOT" });
 
-    // 3. Start Processing Loop
-    // We loop until the queue is empty AND no workers are busy
-    while (queue.length > 0 || activeWorkers > 0) {
+    // 3. Monitor Loop
+    const monitor = setInterval(() => {
+        console.log(`${CLR.Yellow}[STATUS] Active: ${activeWorkers}/${MAX_CONCURRENCY} | Queue: ${queue.length} | Found: ${results.length}${CLR.Reset}`);
+    }, 2000);
 
-        // If queue has items and we have free workers, assign tasks
+    // 4. Task Distributor
+    while (queue.length > 0 || activeWorkers > 0) {
         while (queue.length > 0 && workers.length > 0) {
             const task = queue.shift();
 
-            // Deduplicate
             if (visited.has(task.url)) continue;
             visited.add(task.url);
 
-            const worker = workers.pop(); // Take a free worker
+            const worker = workers.pop();
             activeWorkers++;
 
-            // Process the task (Async - don't await here!)
-            processTask(worker, task).then((returnedWorker) => {
-                workers.push(returnedWorker); // Return worker to pool
+            // Run Async
+            processTask(worker, task).then((w) => {
+                workers.push(w);
                 activeWorkers--;
             });
         }
-
-        // Wait a tiny bit before checking again to save CPU
-        await new Promise(r => setTimeout(r, 200));
+        await wait(100);
     }
 
-    // 4. Finish
-    console.log("\n==================================================");
-    console.log("✅ SCRAPING COMPLETE");
-    console.log(`   Total Pages Visited: ${visited.size}`);
-    console.log(`   Total Products Found: ${results.length}`);
-    fs.writeFileSync(OUTPUT_FILE, JSON.stringify(results, null, 2));
-    console.log(`   Data saved to: ${OUTPUT_FILE}`);
+    clearInterval(monitor);
 
+    console.log(`${CLR.Green}\n✅ SWARM FINISHED! Scraped ${results.length} items.${CLR.Reset}`);
+    fs.writeFileSync(OUTPUT_FILE, JSON.stringify(results, null, 2));
+    console.log(`Data saved to: ${OUTPUT_FILE}`);
     await browser.close();
 })();
 
@@ -82,134 +102,74 @@ let activeWorkers = 0;      // Count of tabs currently busy
 async function processTask(worker, task) {
     const { id, page } = worker;
     const { url, depth, parent } = task;
+    const logPrefix = `${CLR.Cyan}[W${id}]${CLR.Reset}`;
 
     try {
-        // console.log(`   [Worker ${id}] Visiting: ...${url.slice(-30)}`); // Verbose log
+        // Fast Timeout (20s) - Fail fast, don't hang
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 });
 
-        // A. Navigate
-        try {
-            await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
-        } catch(e) {
-            console.log(`   ⚠️ [Worker ${id}] Timeout loading ${url}. Retrying once...`);
-            await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
-        }
-
-        // B. Handle Cookies (Only needed once per tab really, but good safety)
+        // Kill Cookie Banner (Once per load)
         const cookieBtn = await page.$('#truste-consent-button');
-        if (cookieBtn) await cookieBtn.click().catch(() => {});
+        if (cookieBtn) await cookieBtn.click().catch(()=>{});
 
-        // C. Wait for Content
-        await waitForContent(page);
+        await waitForAngular(page);
 
-        // D. Scrape Cards
-        // We look for ANY card type
-        const cardSelector = '.brand-card-group, app-cpq-product-card, .product-item, .card';
-        const cards = await page.$$(cardSelector);
+        // Scan for Cards
+        const selector = '.brand-card-group, app-cpq-product-card, .product-item, .card';
+        // Quick check
+        try {
+            await page.waitForSelector(selector, { timeout: 3000 });
+        } catch(e) {}
 
-        if (cards.length > 0) {
-            console.log(`   [Worker ${id}] Found ${cards.length} items at Depth ${depth}`);
+        const items = await page.evaluate((sel) => {
+            return Array.from(document.querySelectorAll(sel)).map(el => {
+                const t = el.querySelector('.card-title, h4, h3')?.innerText.trim();
+                const img = el.querySelector('img')?.alt;
+                const isLeaf = !!el.querySelector('input[type="checkbox"], .chk');
+                return { title: t || img || "Unknown", isLeaf };
+            });
+        }, selector);
 
-            // Extract Data from all cards in parallel
-            const items = await page.evaluate((sel) => {
-                return Array.from(document.querySelectorAll(sel)).map(card => {
-                    const t = card.querySelector('.card-title, h4, h3')?.innerText.trim() || "";
-                    const img = card.querySelector('img');
-                    const title = t || (img ? img.alt : "Unknown");
+        if (items.length > 0) {
+            console.log(`${logPrefix} Found ${items.length} items in "${parent}"`);
 
-                    // Check for Checkbox (Leaf Node Indicator)
-                    const isLeaf = !!card.querySelector('input[type="checkbox"], .chk');
-
-                    // Attempt to find click destination (Deep Link)
-                    // If no href, we flag it as needing a "Click" (which is harder in parallel)
-                    // But usually, scraping the current URL + adding parameters helps
-                    return { title, isLeaf };
-                });
-            }, cardSelector);
-
-            // E. Process Results
-            for (const item of items) {
-                // Save Result
-                results.push({
-                    parent: parent,
-                    title: item.title,
-                    depth: depth,
-                    isLeaf: item.isLeaf
-                });
-
-                // Add Children to Queue
-                // NOTE: We construct the NEXT URL based on the click pattern if possible.
-                // Since we can't "Click" and stay on this page (because we need to return the worker),
-                // we must simulated the navigation.
-                // Fortunately, AGCO CPQ updates URLs.
-                // We will attempt to 'Click' in the browser to get the new URL,
-                // BUT this blocks the worker.
+            // Process Items
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                results.push({ ...item, parent, depth, url });
 
                 if (!item.isLeaf && depth < MAX_DEPTH) {
-                    // Start a "Sub-Task" to get the link
-                    // This is the tricky part of Parallel SPA scraping.
-                    // We will queue a "Click Exploration" task.
-                    // Simplified: We assume clicking an item *usually* appends an ID or Name to the URL.
-                    // Since we can't guess the ID, we actually HAVE to click in this worker.
+                    console.log(`${logPrefix} 🖱️ Clicking ${i+1}/${items.length}: ${item.title}`);
 
-                    await clickAndEnqueue(page, item.title, depth, url);
+                    // Re-acquire DOM element
+                    const freshCards = await page.$$(selector);
+                    if (freshCards[i]) {
+                        const target = freshCards[i];
+                        const clicker = await target.$('img') || target;
+
+                        await clicker.click();
+                        await waitForAngular(page);
+
+                        const newUrl = page.url();
+                        if (newUrl !== url) {
+                            // NEW LINK FOUND -> Add to Queue
+                            queue.push({ url: newUrl, depth: depth + 1, parent: item.title });
+
+                            // Go Back immediately to continue processing list
+                            await page.goBack({ waitUntil: 'domcontentloaded' });
+                            await waitForAngular(page);
+                        }
+                    }
                 }
             }
         } else {
-            // No cards = Leaf Page (Configuration)
-            // console.log(`   [Worker ${id}] No cards. Leaf page.`);
+            // Leaf Page or Empty
+            // console.log(`${logPrefix} Leaf Page.`);
         }
 
-    } catch (err) {
-        console.error(`   ❌ [Worker ${id}] Error: ${err.message}`);
-    }
-
-    return worker; // Return to pool
-}
-
-// --- HELPER: CLICK & CAPTURE LINKS ---
-// Since we can't guess URLs, the worker must click the card, capture the new URL,
-// add it to the global queue, and then GO BACK to process the next card.
-async function clickAndEnqueue(page, titleToClick, currentDepth, currentUrl) {
-    try {
-        // Find specific card by text
-        const cards = await page.$$('.brand-card-group, app-cpq-product-card, .card');
-        let targetCard;
-
-        for (const c of cards) {
-            const txt = await page.evaluate(el => el.innerText + (el.querySelector('img')?.alt || ""), c);
-            if (txt.includes(titleToClick)) {
-                targetCard = c;
-                break;
-            }
-        }
-
-        if (targetCard) {
-            // Click
-            const clickTarget = await targetCard.$('img') || targetCard;
-            await clickTarget.click();
-
-            // Wait for URL change
-            await new Promise(r => setTimeout(r, 2000)); // Wait for Angular routing
-            const newUrl = page.url();
-
-            if (newUrl !== currentUrl) {
-                // Success! We found a new link. Add to Main Queue
-                // console.log(`      + Queueing: ${newUrl}`);
-                queue.push({ url: newUrl, depth: currentDepth + 1, parent: titleToClick });
-
-                // Go back to process siblings
-                await page.goBack();
-                await waitForContent(page);
-            }
-        }
     } catch (e) {
-        // Ignore click errors, move to next
+        console.log(`${logPrefix} ${CLR.Red}Skip:${CLR.Reset} ${e.message.split('\n')[0]}`);
     }
-}
 
-async function waitForContent(page) {
-    try {
-        await page.waitForFunction(() => !document.querySelector('.loader-container'), { timeout: 5000 });
-    } catch(e) {}
-    await new Promise(r => setTimeout(r, 1000));
+    return worker;
 }
