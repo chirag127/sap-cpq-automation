@@ -10,8 +10,36 @@ const MAX_DEPTH = 6;
 let fullData = [];
 let visitedUrls = new Set();
 
+// --- GLOBAL HELPER FUNCTIONS ---
+
+// 1. Robust Wait for Angular/SPA Loading
+async function waitForAngular(page) {
+    try {
+        // Wait for spinner to disappear
+        await page.waitForSelector('.loader-container', { hidden: true, timeout: 5000 });
+    } catch (e) {
+        // If timeout, just continue (spinner might not have appeared)
+    }
+    // Hard wait for grid repaint
+    await new Promise(r => setTimeout(r, 2000));
+}
+
+// 2. Kill Cookie Banners
+async function handleCookies(page) {
+    try {
+        const btn = await page.$('#truste-consent-button');
+        if (btn) {
+            console.log('🍪 Clicking Cookie Banner...');
+            await btn.click();
+            await waitForAngular(page);
+        }
+    } catch (e) {}
+}
+
+// --- MAIN SCRAPER ---
+
 async function scrape() {
-    console.log("🤖 Launching Scraper V3 (Broad Selectors)...");
+    console.log("🤖 Launching Scraper V4 (Fixed Scope)...");
 
     const browser = await puppeteer.launch({
         headless: false,
@@ -20,50 +48,29 @@ async function scrape() {
     });
 
     const page = await browser.newPage();
-    // Increase default timeout to 60s for slow assets
     page.setDefaultNavigationTimeout(60000);
 
-    // 1. HELPER: Robust Wait
-    const waitForAngular = async () => {
-        try {
-            // Wait for spinner to disappear
-            await page.waitForSelector('.loader-container', { hidden: true, timeout: 5000 });
-        } catch (e) {}
-        // Hard wait for grid to paint
-        await new Promise(r => setTimeout(r, 2000));
-    };
-
-    // 2. HELPER: Kill Cookies
-    const handleCookies = async () => {
-        try {
-            const btn = await page.$('#truste-consent-button');
-            if (btn) {
-                console.log('🍪 Clicking Cookie Banner...');
-                await btn.click();
-                await waitForAngular();
-            }
-        } catch (e) {}
-    };
-
     try {
-        console.log(`🚀 Navigating to Home...`);
+        console.log(`🚀 Navigating to Home: ${BASE_URL}`);
         await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
-        await waitForAngular();
-        await handleCookies();
 
+        await waitForAngular(page);
+        await handleCookies(page);
+
+        // Start recursion
         await scrapeLevel(page, 'Home', 0);
 
     } catch (err) {
         console.error("❌ CRITICAL ERROR:", err);
     } finally {
         fs.writeFileSync(OUTPUT_FILE, JSON.stringify(fullData, null, 2));
-        console.log(`\n✅ DONE! Saved ${fullData.length} items.`);
+        console.log(`\n✅ DONE! Saved ${fullData.length} items to ${OUTPUT_FILE}`);
         await browser.close();
     }
 }
 
 /**
- * Recursive Scraper
+ * Recursive Scraper Function
  */
 async function scrapeLevel(page, parentName, depth) {
     const currentUrl = page.url();
@@ -73,14 +80,14 @@ async function scrapeLevel(page, parentName, depth) {
         return;
     }
 
+    // Deduplication logic
     const stateKey = `${currentUrl}::${depth}`;
     if (visitedUrls.has(stateKey)) return;
     visitedUrls.add(stateKey);
 
     console.log(`\n📂 [Level ${depth}] Scanning: "${parentName}"`);
 
-    // --- BROAD SELECTOR STRATEGY ---
-    // We try multiple selectors to find *anything* clickable
+    // --- SELECTOR STRATEGY ---
     const possibleSelectors = [
         '.brand-card-group',        // Home Page
         'app-cpq-product-card',     // Product Cards
@@ -98,8 +105,7 @@ async function scrapeLevel(page, parentName, depth) {
     }
 
     if (!validSelector) {
-        console.log("   📝 No known cards found. Taking debug screenshot...");
-        await page.screenshot({ path: `debug_level_${depth}_${parentName}.png` });
+        console.log("   📝 No known cards found. Probably a Leaf/Config page.");
         return;
     }
 
@@ -109,57 +115,57 @@ async function scrapeLevel(page, parentName, depth) {
 
     // --- LOOP ITEMS ---
     for (let i = 0; i < cards.length; i++) {
-        // Refresh DOM
-        await waitForAngular();
+        // Refresh DOM context
+        await waitForAngular(page);
         let freshCards = await page.$$(validSelector);
         let card = freshCards[i];
         if (!card) continue;
 
         // Extract Data
         let data = await page.evaluate((el) => {
-            // Try to find text in standard places
+            // Try different title locations
             const tEl = el.querySelector('.card-title') || el.querySelector('h4') || el.querySelector('h3');
             const imgEl = el.querySelector('img');
 
             let title = tEl ? tEl.innerText.trim() : "";
-            // Fallback: Use Image Alt text if no title (Home page brands)
-            if (!title && imgEl) title = imgEl.alt;
+            // Fallback to Alt text if no visible title (common on Home Page)
+            if (!title && imgEl) title = imgEl.getAttribute('alt');
 
             return { title: title || "Unknown Item" };
         }, card);
 
         console.log(`   👉 [${i+1}/${cards.length}] Processing: ${data.title}`);
 
-        // Add to data
+        // Add to global data
         fullData.push({ level: depth, parent: parentName, ...data });
 
         // --- CLICK & RECURSE ---
-        // Check for checkbox (Leaf node indicator)
         const isLeaf = await card.$('input[type="checkbox"]');
 
         if (!isLeaf) {
             try {
-                // Click Logic
-                const clickable = await card.$('img') || card; // Click image if present, else card
+                // Determine click target (Image works best for brands, Card body for others)
+                const clickable = await card.$('img') || card;
+
                 await clickable.click();
 
                 // Wait for navigation
                 try {
-                    await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 10000 });
+                    await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 8000 });
                 } catch(e) {
-                    await waitForAngular(); // Just wait for Angular if no nav event
+                    await waitForAngular(page); // Fallback wait
                 }
 
-                // Recurse
+                // RECURSE
                 await scrapeLevel(page, data.title, depth + 1);
 
-                // Go Back
+                // GO BACK
                 console.log("      ⬅️ Back...");
                 await page.goBack({ waitUntil: 'domcontentloaded' });
-                await waitForAngular();
+                await waitForAngular(page);
 
             } catch (err) {
-                console.log(`      ⚠️ Click failed: ${err.message}`);
+                console.log(`      ⚠️ Click interaction failed: ${err.message}`);
             }
         } else {
             console.log("      (Leaf Node Detected - Skipping click)");
