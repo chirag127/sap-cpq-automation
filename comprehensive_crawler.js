@@ -4,49 +4,34 @@ const fs = require('fs');
 // --- CONFIGURATION ---
 const BASE_URL = 'https://cpq.agcocorp.com/agco/customer/en_GB/configurator';
 const OUTPUT_FILE = 'agco_full_dump.json';
-const MAX_DEPTH = 6; // Safety stop
+const MAX_DEPTH = 6;
 
 // --- STATE ---
 let fullData = [];
 let visitedUrls = new Set();
 
 // ==========================================
-// 1. GLOBAL HELPER FUNCTIONS (Moved Outside)
+// 1. GLOBAL HELPERS
 // ==========================================
 
-/**
- * Waits for the Angular ".loader-container" to disappear.
- * Based on your HTML: <div class="loader-container" style="display: none;"></div>
- */
 async function waitForAngular(page) {
     try {
-        // Wait for spinner to be hidden
         await page.waitForSelector('.loader-container', { hidden: true, timeout: 5000 });
-    } catch (e) {
-        // If timeout, it means spinner didn't appear or is stuck. We proceed anyway.
-    }
-    // Hard wait to let the grid repaint (SPA rendering)
-    await new Promise(r => setTimeout(r, 2000));
+    } catch (e) {}
+    // Hard pause for Angular data binding
+    await new Promise(r => setTimeout(r, 3000));
 }
 
-/**
- * Handles the TrustArc Cookie Popup.
- * Based on your HTML: <button id="truste-consent-button">Accept All Cookies</button>
- */
 async function handleCookies(page) {
     try {
         const btnSelector = '#truste-consent-button';
         const btn = await page.$(btnSelector);
-
         if (btn) {
-            console.log('🍪 TrustArc Cookie Banner detected. Clicking "Accept All"...');
+            console.log('🍪 Smashing Cookie Banner...');
             await btn.click();
-            // Wait for the blackbar overlay to go away
-            await new Promise(r => setTimeout(r, 3000));
+            await new Promise(r => setTimeout(r, 2000));
         }
-    } catch (e) {
-        console.log("   (Cookie banner check skipped or failed)");
-    }
+    } catch (e) {}
 }
 
 // ==========================================
@@ -54,27 +39,24 @@ async function handleCookies(page) {
 // ==========================================
 
 async function scrape() {
-    console.log("🤖 Launching Scraper V4 (Fixed Scope)...");
+    console.log("🤖 Launching Scraper V5 (Aggressive Wait)...");
 
     const browser = await puppeteer.launch({
-        headless: false, // Visible browser
+        headless: false,
         defaultViewport: null,
         args: ['--start-maximized']
     });
 
     const page = await browser.newPage();
-    // Set Infinite Timeout (0) because AGCO server is slow
     page.setDefaultNavigationTimeout(0);
 
     try {
-        console.log(`🚀 Navigating to Home: ${BASE_URL}`);
+        console.log(`🚀 Navigating to Home...`);
         await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
 
-        // Initial setup
         await waitForAngular(page);
         await handleCookies(page);
 
-        // Start recursion
         await scrapeLevel(page, 'Home', 0);
 
     } catch (err) {
@@ -87,111 +69,120 @@ async function scrape() {
 }
 
 /**
- * Recursive Scraper Function
+ * Recursive Scraper
  */
 async function scrapeLevel(page, parentName, depth) {
     const currentUrl = page.url();
 
-    // 1. Safety Checks
     if (depth >= MAX_DEPTH) {
-        console.log(`   🛑 Max depth reached (${MAX_DEPTH}). Going back.`);
+        console.log(`   🛑 Max depth reached.`);
         return;
     }
 
-    // Cycle Detection (URL + Depth)
+    // Cycle check
     const stateKey = `${currentUrl}::${depth}`;
     if (visitedUrls.has(stateKey)) return;
     visitedUrls.add(stateKey);
 
     console.log(`\n📂 [Level ${depth}] Scanning: "${parentName}"`);
 
-    // 2. Determine Selector Strategy
-    // Based on your HTML: Home uses '.brand-card-group', Inner pages use 'app-cpq-product-card'
+    // --- SMART SELECTOR DETECTION ---
     let validSelector = '';
 
-    if (await page.$('.brand-card-group')) {
-        validSelector = '.brand-card-group';
-    } else if (await page.$('app-cpq-product-card')) {
-        validSelector = 'app-cpq-product-card';
-    } else if (await page.$('.card')) {
-        validSelector = '.card'; // Fallback
+    // Strategy: explicit wait for known types based on depth
+    try {
+        if (depth === 0) {
+            // Home Page always has brand-card-group
+            await page.waitForSelector('.brand-card-group', { timeout: 10000 });
+            validSelector = '.brand-card-group';
+        } else {
+            // Inner pages usually have product cards
+            // We wait up to 15s for ANY card to appear
+            console.log("   (Waiting for cards to paint...)");
+            await page.waitForFunction(() =>
+                document.querySelector('app-cpq-product-card') ||
+                document.querySelector('.product-item') ||
+                document.querySelector('.card'),
+                { timeout: 15000 }
+            );
+
+            // Determine which one appeared
+            if (await page.$('app-cpq-product-card')) validSelector = 'app-cpq-product-card';
+            else if (await page.$('.product-item')) validSelector = '.product-item';
+            else validSelector = '.card';
+        }
+    } catch (e) {
+        console.log(`   ⚠️ Timeout waiting for cards at ${parentName}.`);
     }
 
     if (!validSelector) {
-        console.log("   📝 No cards found. Assuming Leaf/Config Page.");
+        console.log("   📝 No cards found. Taking screenshot...");
+        await page.screenshot({ path: `fail_${parentName.replace(/[^a-z0-9]/gi, '_')}.png` });
         return;
     }
 
-    // 3. Collect Items
-    // We fetch the count, then loop by index to avoid stale element errors
-    const count = await page.$$eval(validSelector, els => els.length);
-    console.log(`   Found ${count} items using selector: "${validSelector}"`);
+    // --- COLLECT ITEMS ---
+    const cards = await page.$$(validSelector);
+    console.log(`   Found ${cards.length} items using "${validSelector}"`);
 
-    for (let i = 0; i < count; i++) {
-        // REFRESH DOM: Elements die after navigation, we must re-query every loop
+    for (let i = 0; i < cards.length; i++) {
+        // Refresh DOM
         if (i > 0) await waitForAngular(page);
 
-        const cards = await page.$$(validSelector);
-        const card = cards[i];
-
+        const freshCards = await page.$$(validSelector);
+        const card = freshCards[i];
         if (!card) continue;
 
-        // 4. Extract Data
+        // Extract Data
         let data = await page.evaluate((el) => {
-            // Your HTML puts titles in <h4 class="card-title"> or img alt tags
-            const tEl = el.querySelector('.card-title') || el.querySelector('h4');
-            const dEl = el.querySelector('.card-text') || el.querySelector('p');
+            const tEl = el.querySelector('.card-title') || el.querySelector('h4') || el.querySelector('h3');
+            const dEl = el.querySelector('.card-text');
             const imgEl = el.querySelector('img');
 
             let title = tEl ? tEl.innerText.trim() : "";
-            // Fallback for Home Page Brand Cards
-            if (!title && imgEl) title = imgEl.getAttribute('alt');
+            if (!title && imgEl) title = imgEl.getAttribute('alt'); // Home page brands
 
             return {
-                title: title || "Unknown Item",
+                title: title || "Unknown",
                 desc: dEl ? dEl.innerText.trim() : "",
                 img: imgEl ? imgEl.src : ""
             };
         }, card);
 
-        console.log(`   👉 [${i+1}/${count}] Processing: ${data.title}`);
+        console.log(`   👉 [${i+1}/${cards.length}] Processing: ${data.title}`);
 
-        // Save
-        fullData.push({ level: depth, parent: parentName, ...data, url: currentUrl });
+        fullData.push({ level: depth, parent: parentName, ...data });
 
-        // 5. Drill Down Logic
-        // Check if this is a Model Selection (Leaf Node)
-        // Your HTML shows checkboxes <div class="chk chk-round"> for models.
-        const isLeaf = await card.$('input[type="checkbox"]');
+        // --- CHECKBOX CHECK (Leaf Node) ---
+        // Your model HTML has <div class="chk chk-round">
+        const isLeaf = await card.$('.chk, input[type="checkbox"]');
 
         if (!isLeaf) {
             try {
-                // Click the Image (safest click target in Angular cards)
+                // Click
                 const clickTarget = await card.$('img') || card;
                 await clickTarget.click();
 
                 // Wait for URL change or DOM update
-                // Angular SPAs don't always fire 'load', so we wait for the Loader
                 await waitForAngular(page);
 
-                // Check if URL actually changed
+                // Check URL
                 if (page.url() === currentUrl) {
-                    console.log("      (URL didn't change. Likely a filter/leaf. Skipping recursion.)");
+                    console.log("      (URL didn't change. Skipping recursion.)");
                 } else {
                     // RECURSE
                     await scrapeLevel(page, data.title, depth + 1);
 
-                    // GO BACK
+                    // BACK
                     console.log("      ⬅️ Back...");
                     await page.goBack();
                     await waitForAngular(page);
                 }
-
             } catch (err) {
-                console.log(`      ⚠️ Navigation error: ${err.message}`);
+                console.log(`      ⚠️ Navigation failed: ${err.message}`);
             }
         } else {
-            console.log("      (Checkbox detected - Model Page. Stopping drill-down.)");
+            console.log("      (Leaf Node - Checkbox detected)");
         }
     }
 }
