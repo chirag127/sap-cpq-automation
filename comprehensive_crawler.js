@@ -1,23 +1,15 @@
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 
-// --- CONFIGURATION ---
-const TARGET_URL = "https://cpq.agcocorp.com/masseyferguson/customer/en_gb/wholegoods/products";
-const OUTPUT_FILE = 'Massey_Data_Clean.json';
+// Configuration
+const BASE_URL = 'https://cpq.agcocorp.com/agco/customer/en_GB/configurator'; // Derived from your HTML <base> tag
+const OUTPUT_FILE = 'agco_data.json';
 
-const SELECTORS = {
-    // Broad selectors to catch ANY type of tile
-    gridTile: '.product-item, .category-tile, .card, div[class*="tile"], div[class*="product"], app-category-card',
+// Global variable to store scraped data
+let fullData = [];
 
-    // Cookie Banners to destroy
-    overlays: '#onetrust-banner-sdk, .truste_box_overlay, .cookie-banner, .modal-backdrop, .cdk-overlay-container'
-};
-
-(async () => {
-    console.log("------------------------------------------------");
-    console.log("   SAP CPQ SCRAPER V2 (SMART WAIT EDITION)");
-    console.log("------------------------------------------------");
-
+async function scrape() {
+    // Launch browser (Headless: false allows you to see it working, set to true for production)
     const browser = await puppeteer.launch({
         headless: false,
         defaultViewport: null,
@@ -25,132 +17,170 @@ const SELECTORS = {
     });
 
     const page = await browser.newPage();
-    page.setDefaultNavigationTimeout(0); // No timeout
 
-    // 1. NAVIGATE
-    console.log(`[1] Navigating to Catalog...`);
-    await page.goto(TARGET_URL, { waitUntil: 'domcontentloaded' });
+    // Helper: Wait for Angular animations/loaders to finish
+    const waitForAngular = async () => {
+        try {
+            // Your HTML shows a loader container
+            await page.waitForSelector('.loader-container', { hidden: true, timeout: 5000 });
+        } catch (e) {
+            // Ignore timeout if loader doesn't appear
+        }
+        // Wait a bit for DOM to settle
+        await new Promise(r => setTimeout(r, 1000));
+    };
 
-    // 2. NUKE BANNERS (Immediate CSS Injection)
-    await page.addStyleTag({ content: `${SELECTORS.overlays} { display: none !important; visibility: hidden !important; pointer-events: none !important; }` });
+    // Helper: Handle Cookie Popup
+    const handleCookies = async () => {
+        try {
+            const cookieBtnSelector = '#truste-consent-button';
+            // Check if button exists based on your provided HTML
+            if (await page.$(cookieBtnSelector) !== null) {
+                console.log('🍪 Cookie popup detected. Clicking "Accept All"...');
+                await page.click(cookieBtnSelector);
+                await waitForAngular();
+            }
+        } catch (e) {
+            console.log('No cookie popup found or already closed.');
+        }
+    };
 
-    // 3. SMART WAIT (The Fix)
-    console.log("    ...Waiting for grid text ('TRACTORS') to appear...");
     try {
-        // Wait up to 30s for the specific text that confirms the grid is ready
-        await page.waitForFunction(() =>
-            document.body.innerText.includes("TRACTORS") ||
-            document.body.innerText.includes("COMBINES"),
-            { timeout: 30000 }
-        );
-        console.log("    >>> GRID DETECTED!");
-    } catch (e) {
-        console.log("    !!! TIMEOUT: Grid didn't load. Saving screenshot...");
-        await page.screenshot({ path: 'debug_failure.png' });
-        console.log("    (Check 'debug_failure.png' to see what happened)");
+        console.log(`🚀 Navigating to ${BASE_URL}...`);
+        await page.goto(BASE_URL, { waitUntil: 'networkidle2' });
+
+        await waitForAngular();
+        await handleCookies();
+
+        // Start the recursive scraping process
+        // We start at depth 0 (Brands)
+        await scrapeLevel(page, 'Home', 0);
+
+    } catch (error) {
+        console.error('❌ General Error:', error);
+    } finally {
+        // Save Data
+        fs.writeFileSync(OUTPUT_FILE, JSON.stringify(fullData, null, 2));
+        console.log(`\n✅ Scraping complete. Data saved to ${OUTPUT_FILE}`);
         await browser.close();
+    }
+}
+
+/**
+ * Recursive function to handle the hierarchy:
+ * Brand -> Product Group -> Sub Group -> Series -> Models
+ */
+async function scrapeLevel(page, parentName, depth) {
+    console.log(`\n📂 Scraping Level ${depth} under "${parentName}"`);
+
+    // 1. Identify what kind of cards are on the page
+    // Your HTML uses different wrappers but similar card structures
+    // .brand-card-group (Home) OR app-cpq-product-card (Inner pages)
+    let cardSelector = '';
+
+    // Check for Brand Cards (Home Page)
+    const brandsExist = await page.$('.brand-card-group');
+    // Check for Product/Series Cards
+    const productsExist = await page.$('app-cpq-product-card');
+
+    if (brandsExist) {
+        cardSelector = '.brand-card-group';
+    } else if (productsExist) {
+        cardSelector = 'app-cpq-product-card';
+    } else {
+        console.log('   Create Leaf Node found (Specific Model config). Stopping recursion here.');
         return;
     }
 
-    // 4. GET CATEGORIES
-    const categoryNames = await getTileNames(page);
-    console.log(`>>> Found Categories: ${categoryNames.join(', ')}`);
+    // 2. Get Count of items
+    const cards = await page.$$(cardSelector);
+    console.log(`   Found ${cards.length} items to process.`);
 
-    let allData = [];
+    // 3. Loop through items
+    // NOTE: In SPAs, DOM elements become stale after navigation.
+    // We must scrape data, save it, then re-query the DOM or click by index.
 
-    // --- LOOP CATEGORIES ---
-    for (const catName of categoryNames) {
-        if (catName.toUpperCase().includes("PRIVACY") || catName.length < 3) continue;
+    for (let i = 0; i < cards.length; i++) {
+        // Re-query elements because DOM refreshes on back navigation
+        await new Promise(r => setTimeout(r, 1000)); // Stability pause
+        let currentCards = await page.$$(cardSelector);
+        let card = currentCards[i];
 
-        console.log(`\n=== PROCESSING: ${catName} ===`);
+        if (!card) continue;
 
-        // A. Click Category
-        const clicked = await clickTileByText(page, catName);
-        if (!clicked) continue;
+        // Extract Data
+        let itemData = await page.evaluate((el, type) => {
+            let title = '';
+            let description = '';
+            let image = '';
 
-        // B. Wait for Products (Look for "Series" or "MF")
-        await new Promise(r => setTimeout(r, 4000));
-        await page.addStyleTag({ content: `${SELECTORS.overlays} { display: none !important; }` });
+            if (type === '.brand-card-group') {
+                // Logic for Brand Page HTML
+                const imgEl = el.querySelector('img.card-img');
+                title = imgEl ? imgEl.getAttribute('alt') : 'Unknown Brand';
+                image = imgEl ? imgEl.src : '';
+                description = 'Brand Category';
+            } else {
+                // Logic for Product/Series Page HTML
+                const titleEl = el.querySelector('.card-title');
+                const textEl = el.querySelector('.card-text');
+                const imgEl = el.querySelector('img');
 
-        // C. Get Products
-        const productNames = await getTileNames(page);
-
-        // Validating we actually moved
-        if (JSON.stringify(productNames) === JSON.stringify(categoryNames)) {
-            console.log("    (Navigation failed, still on main menu. Skipping.)");
-            continue;
-        }
-
-        console.log(`    >>> Found Products: ${productNames.length} items`);
-
-        // --- LOOP PRODUCTS ---
-        for (const prodName of productNames) {
-            // Filter noise
-            if (prodName.includes("Back") || prodName.includes("Privacy")) continue;
-
-            console.log(`       -> Scraping: ${prodName}`);
-
-            const prodClicked = await clickTileByText(page, prodName);
-            if (!prodClicked) continue;
-
-            // Wait for Details (H1)
-            try { await page.waitForSelector('h1', { timeout: 8000 }); } catch(e) {}
-
-            // Scrape
-            const data = await page.evaluate(() => {
-                const txt = (s) => document.querySelector(s)?.innerText.trim() || "";
-                return {
-                    name: txt('h1'),
-                    desc: txt('.description') || txt('#description'),
-                    specs: txt('.specifications') || txt('table')
-                };
-            });
-
-            if (data.name) {
-                console.log(`          [OK] ${data.name.substring(0, 30)}...`);
-                allData.push({
-                    brand: "Massey Ferguson",
-                    category: catName,
-                    product: data.name,
-                    description: data.desc,
-                    specs: data.specs
-                });
+                title = titleEl ? titleEl.innerText.trim() : 'Unknown Product';
+                description = textEl ? textEl.innerText.trim() : '';
+                image = imgEl ? imgEl.src : '';
             }
 
-            // Back to Product List
-            await page.goBack();
-            await new Promise(r => setTimeout(r, 2000));
-            await page.addStyleTag({ content: `${SELECTORS.overlays} { display: none !important; }` });
-        }
+            return { title, description, image };
+        }, card, cardSelector);
 
-        // Back to Main Menu
-        console.log(`    (Returning to Categories...)`);
-        await page.goto(TARGET_URL, { waitUntil: 'domcontentloaded' });
-        await new Promise(r => setTimeout(r, 3000));
-        await page.addStyleTag({ content: `${SELECTORS.overlays} { display: none !important; }` });
+        console.log(`   👉 Processing: ${itemData.title}`);
+
+        // Add to global data
+        fullData.push({
+            parent: parentName,
+            depth: depth,
+            ...itemData
+        });
+
+        // 4. Click and Recurse (Drill down)
+        // We only drill down if it's NOT a leaf node (Model selection with checkboxes)
+        const isLeaf = await card.$('input[type="checkbox"]'); // Your model HTML has checkboxes
+
+        if (!isLeaf) {
+            try {
+                // Click the card (or the image inside it if it's a brand card)
+                if (cardSelector === '.brand-card-group') {
+                    const clickTarget = await card.$('img.card-img');
+                    if (clickTarget) await clickTarget.click();
+                } else {
+                    await card.click();
+                }
+
+                // Wait for navigation/loading
+                try {
+                    await page.waitForNavigation({ timeout: 5000, waitUntil: 'networkidle2' });
+                } catch (e) {
+                    // SPAs sometimes don't trigger standard navigation events, just wait for loader
+                    await page.waitForSelector('.loader-container', { hidden: true, timeout: 5000 }).catch(()=>{});
+                }
+
+                // RECURSIVE CALL
+                await scrapeLevel(page, itemData.title, depth + 1);
+
+                // GO BACK UP THE TREE
+                console.log('   ⬅️ Going back...');
+                await page.goBack({ waitUntil: 'networkidle0' });
+                await page.waitForSelector('.loader-container', { hidden: true, timeout: 5000 }).catch(()=>{});
+
+            } catch (err) {
+                console.error(`   Error clicking ${itemData.title}:`, err.message);
+            }
+        } else {
+            console.log('   🛑 End of line (Model configuration).');
+        }
     }
-
-    fs.writeFileSync(OUTPUT_FILE, JSON.stringify(allData, null, 2));
-    console.log(`\nDONE! Saved to ${OUTPUT_FILE}`);
-    await browser.close();
-})();
-
-// --- HELPERS ---
-async function getTileNames(page) {
-    return await page.evaluate((sel) => {
-        const tiles = Array.from(document.querySelectorAll(sel));
-        return tiles.map(t => t.innerText.split('\n')[0].trim()).filter(t => t.length > 0);
-    }, SELECTORS.gridTile);
 }
 
-async function clickTileByText(page, text) {
-    return await page.evaluate((sel, txt) => {
-        const tiles = Array.from(document.querySelectorAll(sel));
-        const target = tiles.find(t => t.innerText.includes(txt));
-        if (target) {
-            target.click();
-            return true;
-        }
-        return false;
-    }, SELECTORS.gridTile, text);
-}
+// Run the script
+scrape();
