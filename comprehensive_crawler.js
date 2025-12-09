@@ -3,188 +3,213 @@ const fs = require('fs');
 
 // --- CONFIGURATION ---
 const BASE_URL = 'https://cpq.agcocorp.com/agco/customer/en_GB/configurator';
-const OUTPUT_FILE = 'agco_full_dump.json';
+const OUTPUT_FILE = 'agco_parallel_dump.json';
+const MAX_CONCURRENCY = 5; // Number of simultaneous tabs (Don't go over 8)
 const MAX_DEPTH = 6;
 
-// --- STATE ---
-let fullData = [];
-let visitedUrls = new Set();
+// --- SHARED STATE ---
+const queue = [];           // URLs waiting to be scraped
+const results = [];         // Final data
+const visited = new Set();  // Deduplication
+let activeWorkers = 0;      // Count of tabs currently busy
 
-// ==========================================
-// 1. GLOBAL HELPERS
-// ==========================================
-
-async function waitForAngular(page) {
-    try {
-        await page.waitForSelector('.loader-container', { hidden: true, timeout: 5000 });
-    } catch (e) {}
-    // Hard pause for Angular data binding
-    await new Promise(r => setTimeout(r, 3000));
-}
-
-async function handleCookies(page) {
-    try {
-        const btnSelector = '#truste-consent-button';
-        const btn = await page.$(btnSelector);
-        if (btn) {
-            console.log('🍪 Smashing Cookie Banner...');
-            await btn.click();
-            await new Promise(r => setTimeout(r, 2000));
-        }
-    } catch (e) {}
-}
-
-// ==========================================
-// 2. MAIN LOGIC
-// ==========================================
-
-async function scrape() {
-    console.log("🤖 Launching Scraper V5 (Aggressive Wait)...");
+// --- MAIN ORCHESTRATOR ---
+(async () => {
+    console.log(`🚀 Launching Parallel Scraper with ${MAX_CONCURRENCY} workers...`);
 
     const browser = await puppeteer.launch({
-        headless: false,
+        headless: false, // Keep visible to monitor
         defaultViewport: null,
-        args: ['--start-maximized']
+        args: ['--start-maximized'],
+        protocolTimeout: 0 // Prevent timeouts
     });
 
-    const page = await browser.newPage();
-    page.setDefaultNavigationTimeout(0);
-
-    try {
-        console.log(`🚀 Navigating to Home...`);
-        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
-
-        await waitForAngular(page);
-        await handleCookies(page);
-
-        await scrapeLevel(page, 'Home', 0);
-
-    } catch (err) {
-        console.error("❌ CRITICAL ERROR:", err);
-    } finally {
-        fs.writeFileSync(OUTPUT_FILE, JSON.stringify(fullData, null, 2));
-        console.log(`\n✅ DONE! Saved ${fullData.length} items to ${OUTPUT_FILE}`);
-        await browser.close();
-    }
-}
-
-/**
- * Recursive Scraper
- */
-async function scrapeLevel(page, parentName, depth) {
-    const currentUrl = page.url();
-
-    if (depth >= MAX_DEPTH) {
-        console.log(`   🛑 Max depth reached.`);
-        return;
+    // 1. Initialize Workers (Tabs)
+    const workers = [];
+    for (let i = 0; i < MAX_CONCURRENCY; i++) {
+        const page = await browser.newPage();
+        // Optimize page for speed
+        await page.setRequestInterception(true);
+        page.on('request', (req) => {
+            // Block fonts/images to speed up loading
+            if (['font', 'image'].includes(req.resourceType())) req.abort();
+            else req.continue();
+        });
+        workers.push({ id: i + 1, page });
     }
 
-    // Cycle check
-    const stateKey = `${currentUrl}::${depth}`;
-    if (visitedUrls.has(stateKey)) return;
-    visitedUrls.add(stateKey);
+    // 2. Setup Initial Queue (Home Page)
+    queue.push({ url: BASE_URL, depth: 0, parent: "ROOT" });
 
-    console.log(`\n📂 [Level ${depth}] Scanning: "${parentName}"`);
+    // 3. Start Processing Loop
+    // We loop until the queue is empty AND no workers are busy
+    while (queue.length > 0 || activeWorkers > 0) {
 
-    // --- SMART SELECTOR DETECTION ---
-    let validSelector = '';
+        // If queue has items and we have free workers, assign tasks
+        while (queue.length > 0 && workers.length > 0) {
+            const task = queue.shift();
 
-    // Strategy: explicit wait for known types based on depth
-    try {
-        if (depth === 0) {
-            // Home Page always has brand-card-group
-            await page.waitForSelector('.brand-card-group', { timeout: 10000 });
-            validSelector = '.brand-card-group';
-        } else {
-            // Inner pages usually have product cards
-            // We wait up to 15s for ANY card to appear
-            console.log("   (Waiting for cards to paint...)");
-            await page.waitForFunction(() =>
-                document.querySelector('app-cpq-product-card') ||
-                document.querySelector('.product-item') ||
-                document.querySelector('.card'),
-                { timeout: 15000 }
-            );
+            // Deduplicate
+            if (visited.has(task.url)) continue;
+            visited.add(task.url);
 
-            // Determine which one appeared
-            if (await page.$('app-cpq-product-card')) validSelector = 'app-cpq-product-card';
-            else if (await page.$('.product-item')) validSelector = '.product-item';
-            else validSelector = '.card';
+            const worker = workers.pop(); // Take a free worker
+            activeWorkers++;
+
+            // Process the task (Async - don't await here!)
+            processTask(worker, task).then((returnedWorker) => {
+                workers.push(returnedWorker); // Return worker to pool
+                activeWorkers--;
+            });
         }
-    } catch (e) {
-        console.log(`   ⚠️ Timeout waiting for cards at ${parentName}.`);
+
+        // Wait a tiny bit before checking again to save CPU
+        await new Promise(r => setTimeout(r, 200));
     }
 
-    if (!validSelector) {
-        console.log("   📝 No cards found. Taking screenshot...");
-        await page.screenshot({ path: `fail_${parentName.replace(/[^a-z0-9]/gi, '_')}.png` });
-        return;
-    }
+    // 4. Finish
+    console.log("\n==================================================");
+    console.log("✅ SCRAPING COMPLETE");
+    console.log(`   Total Pages Visited: ${visited.size}`);
+    console.log(`   Total Products Found: ${results.length}`);
+    fs.writeFileSync(OUTPUT_FILE, JSON.stringify(results, null, 2));
+    console.log(`   Data saved to: ${OUTPUT_FILE}`);
 
-    // --- COLLECT ITEMS ---
-    const cards = await page.$$(validSelector);
-    console.log(`   Found ${cards.length} items using "${validSelector}"`);
+    await browser.close();
+})();
 
-    for (let i = 0; i < cards.length; i++) {
-        // Refresh DOM
-        if (i > 0) await waitForAngular(page);
+// --- WORKER LOGIC ---
+async function processTask(worker, task) {
+    const { id, page } = worker;
+    const { url, depth, parent } = task;
 
-        const freshCards = await page.$$(validSelector);
-        const card = freshCards[i];
-        if (!card) continue;
+    try {
+        // console.log(`   [Worker ${id}] Visiting: ...${url.slice(-30)}`); // Verbose log
 
-        // Extract Data
-        let data = await page.evaluate((el) => {
-            const tEl = el.querySelector('.card-title') || el.querySelector('h4') || el.querySelector('h3');
-            const dEl = el.querySelector('.card-text');
-            const imgEl = el.querySelector('img');
+        // A. Navigate
+        try {
+            await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+        } catch(e) {
+            console.log(`   ⚠️ [Worker ${id}] Timeout loading ${url}. Retrying once...`);
+            await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+        }
 
-            let title = tEl ? tEl.innerText.trim() : "";
-            if (!title && imgEl) title = imgEl.getAttribute('alt'); // Home page brands
+        // B. Handle Cookies (Only needed once per tab really, but good safety)
+        const cookieBtn = await page.$('#truste-consent-button');
+        if (cookieBtn) await cookieBtn.click().catch(() => {});
 
-            return {
-                title: title || "Unknown",
-                desc: dEl ? dEl.innerText.trim() : "",
-                img: imgEl ? imgEl.src : ""
-            };
-        }, card);
+        // C. Wait for Content
+        await waitForContent(page);
 
-        console.log(`   👉 [${i+1}/${cards.length}] Processing: ${data.title}`);
+        // D. Scrape Cards
+        // We look for ANY card type
+        const cardSelector = '.brand-card-group, app-cpq-product-card, .product-item, .card';
+        const cards = await page.$$(cardSelector);
 
-        fullData.push({ level: depth, parent: parentName, ...data });
+        if (cards.length > 0) {
+            console.log(`   [Worker ${id}] Found ${cards.length} items at Depth ${depth}`);
 
-        // --- CHECKBOX CHECK (Leaf Node) ---
-        // Your model HTML has <div class="chk chk-round">
-        const isLeaf = await card.$('.chk, input[type="checkbox"]');
+            // Extract Data from all cards in parallel
+            const items = await page.evaluate((sel) => {
+                return Array.from(document.querySelectorAll(sel)).map(card => {
+                    const t = card.querySelector('.card-title, h4, h3')?.innerText.trim() || "";
+                    const img = card.querySelector('img');
+                    const title = t || (img ? img.alt : "Unknown");
 
-        if (!isLeaf) {
-            try {
-                // Click
-                const clickTarget = await card.$('img') || card;
-                await clickTarget.click();
+                    // Check for Checkbox (Leaf Node Indicator)
+                    const isLeaf = !!card.querySelector('input[type="checkbox"], .chk');
 
-                // Wait for URL change or DOM update
-                await waitForAngular(page);
+                    // Attempt to find click destination (Deep Link)
+                    // If no href, we flag it as needing a "Click" (which is harder in parallel)
+                    // But usually, scraping the current URL + adding parameters helps
+                    return { title, isLeaf };
+                });
+            }, cardSelector);
 
-                // Check URL
-                if (page.url() === currentUrl) {
-                    console.log("      (URL didn't change. Skipping recursion.)");
-                } else {
-                    // RECURSE
-                    await scrapeLevel(page, data.title, depth + 1);
+            // E. Process Results
+            for (const item of items) {
+                // Save Result
+                results.push({
+                    parent: parent,
+                    title: item.title,
+                    depth: depth,
+                    isLeaf: item.isLeaf
+                });
 
-                    // BACK
-                    console.log("      ⬅️ Back...");
-                    await page.goBack();
-                    await waitForAngular(page);
+                // Add Children to Queue
+                // NOTE: We construct the NEXT URL based on the click pattern if possible.
+                // Since we can't "Click" and stay on this page (because we need to return the worker),
+                // we must simulated the navigation.
+                // Fortunately, AGCO CPQ updates URLs.
+                // We will attempt to 'Click' in the browser to get the new URL,
+                // BUT this blocks the worker.
+
+                if (!item.isLeaf && depth < MAX_DEPTH) {
+                    // Start a "Sub-Task" to get the link
+                    // This is the tricky part of Parallel SPA scraping.
+                    // We will queue a "Click Exploration" task.
+                    // Simplified: We assume clicking an item *usually* appends an ID or Name to the URL.
+                    // Since we can't guess the ID, we actually HAVE to click in this worker.
+
+                    await clickAndEnqueue(page, item.title, depth, url);
                 }
-            } catch (err) {
-                console.log(`      ⚠️ Navigation failed: ${err.message}`);
             }
         } else {
-            console.log("      (Leaf Node - Checkbox detected)");
+            // No cards = Leaf Page (Configuration)
+            // console.log(`   [Worker ${id}] No cards. Leaf page.`);
         }
+
+    } catch (err) {
+        console.error(`   ❌ [Worker ${id}] Error: ${err.message}`);
+    }
+
+    return worker; // Return to pool
+}
+
+// --- HELPER: CLICK & CAPTURE LINKS ---
+// Since we can't guess URLs, the worker must click the card, capture the new URL,
+// add it to the global queue, and then GO BACK to process the next card.
+async function clickAndEnqueue(page, titleToClick, currentDepth, currentUrl) {
+    try {
+        // Find specific card by text
+        const cards = await page.$$('.brand-card-group, app-cpq-product-card, .card');
+        let targetCard;
+
+        for (const c of cards) {
+            const txt = await page.evaluate(el => el.innerText + (el.querySelector('img')?.alt || ""), c);
+            if (txt.includes(titleToClick)) {
+                targetCard = c;
+                break;
+            }
+        }
+
+        if (targetCard) {
+            // Click
+            const clickTarget = await targetCard.$('img') || targetCard;
+            await clickTarget.click();
+
+            // Wait for URL change
+            await new Promise(r => setTimeout(r, 2000)); // Wait for Angular routing
+            const newUrl = page.url();
+
+            if (newUrl !== currentUrl) {
+                // Success! We found a new link. Add to Main Queue
+                // console.log(`      + Queueing: ${newUrl}`);
+                queue.push({ url: newUrl, depth: currentDepth + 1, parent: titleToClick });
+
+                // Go back to process siblings
+                await page.goBack();
+                await waitForContent(page);
+            }
+        }
+    } catch (e) {
+        // Ignore click errors, move to next
     }
 }
 
-scrape();
+async function waitForContent(page) {
+    try {
+        await page.waitForFunction(() => !document.querySelector('.loader-container'), { timeout: 5000 });
+    } catch(e) {}
+    await new Promise(r => setTimeout(r, 1000));
+}
