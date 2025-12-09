@@ -2,9 +2,9 @@ const puppeteer = require('puppeteer');
 const fs = require('fs');
 
 // --- CONFIGURATION ---
-const BASE_URL = 'https://cpq.agcocorp.com/agco/customer/en_GB/configurator';
-const OUTPUT_FILE = 'agco_swarm_v3.json';
-const MAX_CONCURRENCY = 10; // 10 Browsers
+const BASE_URL = 'https://cpq.agcocorp.com/masseyferguson/customer/en_GB/wholegoods/products';
+const OUTPUT_FILE = 'agco_complete_data.json';
+const MAX_CONCURRENCY = 5; // Keep 5 for stability with heavy scraping
 const MAX_DEPTH = 6;
 const MAX_RETRIES = 3;
 
@@ -36,13 +36,13 @@ async function waitForAngular(page) {
 // --- MAIN ---
 (async () => {
     console.log(`${CLR.Green}======================================================${CLR.Reset}`);
-    console.log(`${CLR.Green}   🚀 LAUNCHING SWARM V3 (RETRY ENABLED)   ${CLR.Reset}`);
+    console.log(`${CLR.Green}   🚀 LAUNCHING SWARM V4 (FULL DATA EXTRACTION)   ${CLR.Reset}`);
     console.log(`${CLR.Green}======================================================${CLR.Reset}`);
 
     const browser = await puppeteer.launch({
         headless: false,
         defaultViewport: null,
-        protocolTimeout: 0, // Fix for "Runtime.callFunctionOn timed out"
+        protocolTimeout: 0,
         args: ['--start-maximized', '--disable-notifications']
     });
 
@@ -51,7 +51,7 @@ async function waitForAngular(page) {
     for (let i = 0; i < MAX_CONCURRENCY; i++) {
         const page = await browser.newPage();
 
-        // Block only heavy media, allow CSS/Fonts for layout stability
+        // Block only heavy media to keep descriptions/layout intact
         await page.setRequestInterception(true);
         page.on('request', (req) => {
             if (['image', 'media'].includes(req.resourceType())) req.abort();
@@ -66,7 +66,7 @@ async function waitForAngular(page) {
 
     // 3. Monitor
     const monitor = setInterval(() => {
-        console.log(`${CLR.Yellow}[STATUS] Active: ${activeWorkers}/${MAX_CONCURRENCY} | Queue: ${queue.length} | Items: ${results.length}${CLR.Reset}`);
+        console.log(`${CLR.Yellow}[STATUS] Active: ${activeWorkers}/${MAX_CONCURRENCY} | Queue: ${queue.length} | Items Scraped: ${results.length}${CLR.Reset}`);
     }, 2000);
 
     // 4. Distributor
@@ -103,9 +103,7 @@ async function processTask(worker, task) {
     const logPrefix = `${CLR.Cyan}[W${id}]${CLR.Reset}`;
 
     try {
-        console.log(`${logPrefix} Navigating... (${parent})`);
-
-        // A. Navigate with generous timeout
+        // A. Navigate
         await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 90000 });
 
         // B. Handle Cookies
@@ -114,7 +112,7 @@ async function processTask(worker, task) {
 
         await waitForAngular(page);
 
-        // C. Find Selectors (Wait Logic)
+        // C. Find Selectors
         let selector = '';
         try {
             await page.waitForFunction(() =>
@@ -129,27 +127,58 @@ async function processTask(worker, task) {
         else if (await page.$('app-cpq-product-card')) selector = 'app-cpq-product-card';
         else selector = '.product-item';
 
-        // D. Scrape
+        // D. SCRAPE EVERYTHING (Deep Extraction)
         const items = await page.evaluate((sel) => {
             return Array.from(document.querySelectorAll(sel)).map(el => {
-                const t = el.querySelector('.card-title, h4, h3')?.innerText.trim();
-                const img = el.querySelector('img')?.alt;
+                // 1. Title
+                const tEl = el.querySelector('.card-title, h4, h3');
+                const titleText = tEl ? tEl.innerText.trim() : "";
+
+                // 2. Image
+                const imgEl = el.querySelector('img');
+                const imgSrc = imgEl ? imgEl.src : "";
+                const imgAlt = imgEl ? imgEl.alt : "";
+
+                // 3. Description (The important part)
+                // We look for paragraph tags or specific description classes
+                const descEl = el.querySelector('.card-text, .description, p.text-muted');
+                const description = descEl ? descEl.innerText.trim() : "";
+
+                // 4. Leaf Check
                 const isLeaf = !!el.querySelector('input[type="checkbox"], .chk');
-                return { title: t || img || "Unknown", isLeaf };
+
+                // Fallback for Title
+                const finalTitle = titleText || imgAlt || "Unknown Product";
+
+                return {
+                    title: finalTitle,
+                    description: description,
+                    image_url: imgSrc,
+                    isLeaf: isLeaf
+                };
             });
         }, selector);
 
         if (items.length > 0) {
-            console.log(`${logPrefix} Found ${items.length} items.`);
+            console.log(`${logPrefix} Found ${items.length} items in "${parent}"`);
 
             for (let i = 0; i < items.length; i++) {
                 const item = items[i];
-                results.push({ ...item, parent, depth, url });
 
+                // SAVE FULL DATA
+                results.push({
+                    parent: parent,
+                    depth: depth,
+                    url: url,
+                    title: item.title,
+                    description: item.description,
+                    image: item.image_url
+                });
+
+                // RECURSION (Drill Down)
                 if (!item.isLeaf && depth < MAX_DEPTH) {
                     console.log(`${logPrefix} 🖱️ Clicking ${i+1}/${items.length}: "${item.title}"`);
 
-                    // Re-acquire for click
                     const freshCards = await page.$$(selector);
                     const target = freshCards[i];
 
@@ -161,8 +190,6 @@ async function processTask(worker, task) {
                         const newUrl = page.url();
                         if (newUrl !== url) {
                             queue.push({ url: newUrl, depth: depth + 1, parent: item.title, retryCount: 0 });
-
-                            // Return to list
                             await page.goBack({ waitUntil: 'domcontentloaded' });
                             await waitForAngular(page);
                         }
@@ -170,18 +197,15 @@ async function processTask(worker, task) {
                 }
             }
         } else {
-            // If 0 items and depth is low, it might be a failure. Retry.
+            // Retry Logic for empty pages
             if (depth < 2 && retryCount < MAX_RETRIES) {
-                console.log(`${logPrefix} ${CLR.Red}0 items found. Retrying (${retryCount+1}/${MAX_RETRIES})...${CLR.Reset}`);
+                console.log(`${logPrefix} ${CLR.Red}0 items. Retrying (${retryCount+1})...${CLR.Reset}`);
                 queue.push({ ...task, retryCount: retryCount + 1 });
-            } else {
-                // console.log(`${logPrefix} Leaf Page.`);
             }
         }
 
     } catch (e) {
         console.log(`${logPrefix} ${CLR.Red}Error: ${e.message.split('\n')[0]}${CLR.Reset}`);
-        // Retry logic for crashes
         if (retryCount < MAX_RETRIES) {
             queue.push({ ...task, retryCount: retryCount + 1 });
         }
