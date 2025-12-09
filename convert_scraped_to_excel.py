@@ -4,7 +4,7 @@ import re
 import os
 
 # --- CONFIGURATION ---
-INPUT_JSON = 'agco_swarm_dump.json' # Make sure this matches your scraper output file name
+INPUT_JSON = 'agco_complete_data.json' # Make sure this matches your scraper output file name
 
 # Output files
 CAT_OUTPUT_FILE = '1_Upload_Categories_Chirag.xlsx'
