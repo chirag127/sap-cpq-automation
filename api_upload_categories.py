@@ -1,55 +1,46 @@
 import pandas as pd
 import requests
 import json
-from requests.auth import HTTPBasicAuth
 import sys
 
 # --- CONFIGURATION ---
 BASE_URL = "https://tataconsultancyservices-partner1.cpq.cloud.sap"
-# TRY 1: Use just your ID (remove @tcs.com)
-USERNAME = "REDACTED_CPQ_USERNAME<=="
-PASSWORD = "REDACTED_CPQ_PASSWORD<=="
-DOMAIN = "TATACONSULTANCYSERVICESLIMITED_PARTNER1"
+
+# PASTE YOUR LONG ACCESS TOKEN HERE
+ACCESS_TOKEN = "REDACTED_JWT_TOKEN<=="
 
 INPUT_FILE = '1_Upload_Categories_Chirag.xlsx'
 
 # --- API SETUP ---
-# We found out from your logs that 'products' (plural) is the correct path
 API_ENDPOINT = f"{BASE_URL}/api/products/v1/categories"
 
 def upload_categories():
-    print(f"--- SAP CPQ UPLOADER V4 ---")
-
-    # 1. AUTHENTICATION CONSTRUCTION
-    # Construct: chirag.singhal2#tataconsultancyservices-partner1
-    auth_user = f"{USERNAME}#{DOMAIN}"
-
+    print(f"--- SAP CPQ UPLOADER (TOKEN AUTH) ---")
     print(f"Target: {API_ENDPOINT}")
-    print(f"User:   {auth_user}")
 
-    session = requests.Session()
-    session.auth = HTTPBasicAuth(auth_user, PASSWORD)
-    session.headers.update({
+    # 1. SETUP HEADERS WITH TOKEN
+    # This is the key change: We use 'Bearer' auth
+    headers = {
+        'Authorization': f'Bearer {ACCESS_TOKEN}',
         'Content-Type': 'application/json',
         'Accept': 'application/json'
-    })
+    }
+
+    session = requests.Session()
+    session.headers.update(headers)
 
     # 2. TEST CONNECTION
-    print(f"Testing Auth...")
+    print(f"Testing Token Validity...")
     try:
         test_resp = session.get(API_ENDPOINT, params={"$top": 1})
 
-        if test_resp.status_code == 403 or test_resp.status_code == 401:
-            print("❌ AUTHENTICATION FAILED.")
-            print("Creating an API Password usually fixes this.")
-            print("1. Log in to CPQ.")
-            print("2. Click your Name (top right) > Setup > Users > Users.")
-            print("3. Click on your user 'chirag.singhal2'.")
-            print("4. Scroll down to 'API Password' section.")
-            print("5. Click 'Generate Password', Copy it, and paste it into the script.")
+        if test_resp.status_code == 401:
+            print("❌ Error 401: Unauthorized.")
+            print("Your Access Token has expired or is invalid.")
+            print("Please generate a new token from /basic/api/token and update the script.")
             return
         elif test_resp.status_code == 200:
-            print("✅ Connection Successful! Starting Upload...")
+            print("✅ Token is Valid! Starting Upload...")
         else:
             print(f"⚠️ Warning: {test_resp.status_code} - {test_resp.text}")
 
@@ -79,7 +70,6 @@ def upload_categories():
         desc = str(row['Description']).strip() if pd.notna(row['Description']) else ""
         parent_id = str(row['Parent Category Code']).strip()
 
-        # Payload
         payload = {
             "SystemId": sys_id,
             "Name": name,
@@ -95,6 +85,7 @@ def upload_categories():
         print(f"[{index+1}] Creating {sys_id}...", end=" ")
 
         try:
+            # We don't need 'auth=' here because headers handle it
             response = session.post(API_ENDPOINT, json=payload)
 
             if response.status_code in [200, 201]:
