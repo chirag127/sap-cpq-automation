@@ -27,10 +27,13 @@ GEMINI_MODEL = "gemini-2.5-flash-lite-preview-09-2025"
 # --- 1. CONFIGURATION ---
 INPUT_JSON_FILE = 'agco_complete_data.json' # Your scraped data file
 
+# Root Category ID (Must match what you uploaded earlier)
+ROOT_CAT_ID = "CS_MASSEY_FERGUSON"
+
 # --- HELPER: SYSTEM ID GENERATOR ---
 def make_sys_id(text):
     """Matches the logic used in Category Creation"""
-    if not text: return "CS_UNKNOWN"
+    if not text or text.upper() in ["ROOT", "HOME"]: return ROOT_CAT_ID
     clean = re.sub(r'[^a-zA-Z0-9]', '_', str(text).strip())
     clean = re.sub(r'_+', '_', clean).strip('_')
     return f"CS_{clean}".upper()
@@ -62,7 +65,6 @@ def get_cpq_headers():
 # --- 3. AUTO-DETECT ENDPOINTS ---
 def find_endpoints(headers):
     print("🔎 Validating API Endpoints...")
-    # Prioritize Singluar 'product' which is standard
     patterns = ["/api/product/v1", "/api/products/v1"]
 
     prod_url = None
@@ -93,30 +95,35 @@ def generate_payload(product_name, parent_name, description):
     prod_sys_id = make_sys_id(product_name)
     cat_sys_id = make_sys_id(parent_name)
 
+    # Safety: If sys_id equals root ID (unlikely for product but possible), append _PROD
+    if prod_sys_id == cat_sys_id: prod_sys_id += "_PROD"
+
     client = genai.Client(api_key=GEMINI_API_KEY)
 
     prompt = f"""
     Act as SAP CPQ Architect.
     Product: "{product_name}"
-    Parent Category: "{parent_name}" (ID: {cat_sys_id})
+    Parent Category ID: "{cat_sys_id}"
     Desc: "{description}"
 
     Task: Create JSON for SAP CPQ Product Creation.
 
     CRITICAL RULES:
     1. "SystemId": "{prod_sys_id}"
-    2. "CategorySystemId": "{cat_sys_id}"  <-- MUST INCLUDE THIS
-    3. "Name": "Chirag Singhal - {product_name}"
-    4. "ProductType": "Configurable"
-    5. "DisplayType": "Configuration"
-    6. "Active": true
-    7. "BasePrice": (Realistic Integer)
-    8. Attributes: Create 2 technical attributes (e.g. Engine, Transmission) with 2 values each.
+    2. "CategorySystemId": "{cat_sys_id}"
+    3. "PartNumber": "{prod_sys_id}"  <-- REQUIRED
+    4. "Name": "Chirag Singhal - {product_name}"
+    5. "ProductType": "Configurable"
+    6. "DisplayType": "Configuration"
+    7. "Active": true
+    8. "BasePrice": (Integer)
+    9. Attributes: Create 3 detailed technical attributes (e.g. Engine Power, Transmission Type, Hydraulics).
 
     Output JSON ONLY. No text.
     {{
         "SystemId": "...",
         "CategorySystemId": "...",
+        "PartNumber": "...",
         "Name": "...",
         "ProductType": "...",
         "DisplayType": "...",
@@ -128,7 +135,10 @@ def generate_payload(product_name, parent_name, description):
                 "SystemId": "CS_ATTR_...",
                 "Name": "...",
                 "DisplayType": "DropDown",
-                "Values": [{{"ValueCode": "A", "Display": "Option A", "Price": 0}}]
+                "Values": [
+                    {{"ValueCode": "A", "Display": "Option A", "Price": 0}},
+                    {{"ValueCode": "B", "Display": "Option B", "Price": 1000}}
+                ]
             }}
         ]
     }}
@@ -145,6 +155,7 @@ def generate_payload(product_name, parent_name, description):
         return {
             "SystemId": prod_sys_id,
             "CategorySystemId": cat_sys_id,
+            "PartNumber": prod_sys_id,
             "Name": f"Chirag Singhal - {product_name}",
             "ProductType": "Configurable",
             "DisplayType": "Configuration",
@@ -194,9 +205,9 @@ def upload_product(data, headers, prod_api, attr_api):
                 requests.post(f"{prod_api}({sys_id})/attributes", headers=headers, json={"SystemId": attr['SystemId']})
             except: pass
     else:
-        # Print detailed error for debugging
+        # Print FULL detailed error
         print(f"❌ Failed ({resp.status_code})")
-        print(f"      Err: {resp.text[:200]}") # Print first 200 chars of error
+        print(f"      Response: {resp.text}")
 
 # --- MAIN ---
 if __name__ == "__main__":
@@ -221,7 +232,7 @@ if __name__ == "__main__":
 
         payload = generate_payload(
             prod.get('title'),
-            prod.get('parent', 'Root'), # Pass Parent Category Name
+            prod.get('parent', 'Root'),
             prod.get('description', '')
         )
 
