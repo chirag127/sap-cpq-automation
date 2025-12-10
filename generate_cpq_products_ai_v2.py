@@ -1,11 +1,12 @@
 import pandas as pd
 import json
 import re
+import os
 
 # --- CONFIGURATION ---
 INPUT_JSON_FILE = 'agco_complete_data.json'
-OUTPUT_EXCEL_FILE = 'CPQ_Import_With_Paths.xlsx'
-ROOT_NAME = "Massey Ferguson" # The top-level folder name in your catalog
+OUTPUT_EXCEL_FILE = 'CPQ_Import_Final.xlsx'
+ROOT_CATEGORY_ID = "CS_MASSEY_FERGUSON" # Must match your uploaded root category System ID
 
 # User Settings
 USER_PREFIX = "CS"
@@ -22,33 +23,6 @@ def make_name(text):
     if not text: return f"Unknown - {USER_FULL_NAME}"
     return f"{str(text).strip()} - {USER_FULL_NAME}"
 
-# --- PATH BUILDER ---
-def build_category_map(data):
-    """Creates a lookup dictionary: {'CategoryName': 'ParentName'}"""
-    parent_map = {}
-    for item in data:
-        name = item.get('title')
-        parent = item.get('parent')
-        if name and parent:
-            parent_map[name] = parent
-    return parent_map
-
-def get_full_path(current_category, parent_map):
-    """Recursively builds 'Root > Parent > Child' string"""
-    path = []
-    curr = current_category
-
-    # Loop until we hit ROOT or a missing parent
-    while curr and curr not in ["ROOT", "Home"]:
-        path.insert(0, curr) # Add to front
-        curr = parent_map.get(curr)
-
-    # Prepend the Root Folder Name
-    path.insert(0, ROOT_NAME)
-
-    # Join with the specific CPQ separator
-    return " > ".join(path)
-
 # --- MAIN LOGIC ---
 def process_data():
     print(f"📂 Reading {INPUT_JSON_FILE}...")
@@ -58,58 +32,64 @@ def process_data():
     except:
         print("❌ File not found."); return
 
-    # 1. Build Hierarchy Map
-    parent_map = build_category_map(data)
-
     rows = []
 
-    # 2. Process Items
+    # Iterate Data
     for item in data:
         title = item.get('title', 'Unknown')
         parent_name = item.get('parent', 'ROOT')
         depth = item.get('depth', 0)
         is_leaf = item.get('isLeaf', False)
         description = item.get('description', '')
+        image_url = item.get('image', '')
 
         sys_id = make_sys_id(title)
 
-        # Logic: Treat as Product if leaf or depth >= 3
+        # Determine Category System ID (The Key Fix)
+        if parent_name in ["ROOT", "Home"]:
+            cat_sys_id = ROOT_CATEGORY_ID
+        else:
+            cat_sys_id = make_sys_id(parent_name)
+
         if is_leaf or depth >= 3:
 
-            # CALCULATE FULL PATH
-            # If parent is ROOT, path is just "Massey Ferguson"
-            # If parent is "Tractors", path is "Massey Ferguson > Tractors"
-            category_path = get_full_path(parent_name, parent_map)
-
+            # CREATE ROW
             row = {
                 "Product System ID": sys_id,
                 "Product Name": make_name(title),
                 "Part Number": sys_id,
 
-                # FIX: Full Path String (e.g. "Massey Ferguson > Tractors")
-                "Categories": category_path,
+                # Use System ID for Category (Safer than path string)
+                "Category System ID": cat_sys_id,
+                # Include Name too just in case
+                "Categories": parent_name if parent_name != "ROOT" else "Massey Ferguson",
 
                 "Product Type": "Configurable Product",
                 "Display Type": "Configurable Product",
                 "Active": "TRUE",
                 "Price": "50000",
                 "Description": description[:255] if description else title,
-                "Unit Of Measure": "PC"
+                "Unit Of Measure": "PC",
+                "Image File": image_url
             }
             rows.append(row)
 
-    # 3. Output
+    # OUTPUT
     if rows:
         df = pd.DataFrame(rows)
-        # Reorder for neatness
-        cols = ["Product System ID", "Product Name", "Categories", "Part Number",
-                "Product Type", "Display Type", "Active", "Price", "Description", "Unit Of Measure"]
+
+        # Define Columns
+        cols = [
+            "Product System ID", "Product Name", "Category System ID", "Categories",
+            "Part Number", "Product Type", "Display Type", "Active",
+            "Price", "Description", "Unit Of Measure", "Image File"
+        ]
+
         df = df[cols]
 
         print(f"💾 Writing to {OUTPUT_EXCEL_FILE}...")
         df.to_excel(OUTPUT_EXCEL_FILE, index=False)
-        print(f"✅ Success! Created {len(df)} products.")
-        print("   -> 'Categories' column now contains full paths (e.g., 'Massey Ferguson > Tractors')")
+        print(f"✅ Success! Generated {OUTPUT_EXCEL_FILE} with {len(df)} products.")
     else:
         print("⚠️ No products found.")
 
