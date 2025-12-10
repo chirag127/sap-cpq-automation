@@ -1,188 +1,125 @@
-
+import pandas as pd
 import json
-import time
-import requests
-from google import genai
-from google.genai import types # <--- CRITICAL IMPORT
-import sys
 import re
 import os
 
-# --- 1. CONFIGURATION ---
-# SAP CPQ Settings
-CPQ_BASE_URL = "https://tataconsultancyservices-partner1.cpq.cloud.sap"
-CPQ_TOKEN_URL = f"{CPQ_BASE_URL}/basic/api/token"
-# CONFIRMED: Plural 'products' is the correct v1 endpoint for this tenant
-CPQ_PRODUCT_API = f"{CPQ_BASE_URL}/api/products/v1/products"
-CPQ_ATTR_API = f"{CPQ_BASE_URL}/api/products/v1/attributes"
-# CPQ Credentials (for generating fresh token)
-CPQ_USERNAME = "REDACTED_CPQ_USERNAME<=="  # Username only
-CPQ_DOMAIN = "TATACONSULTANCYSERVICESLIMITED_PARTNER1"
-CPQ_PASSWORD = "REDACTED_CPQ_PASSWORD<=="  # Paste the long string from Setup > Users
+# --- CONFIGURATION ---
+INPUT_JSON_FILE = 'agco_complete_data.json'
+OUTPUT_EXCEL_FILE = 'Max_Columns_CPQ_Import_Fixed.xlsx'
 
+# User Settings
+USER_PREFIX = "CS"
+USER_FULL_NAME = "Chirag Singhal"
+DEFAULT_PRICE = "50000"
 
-# Google Gemini Settings
-# Using the NEW SDK and Model 2.5
-GEMINI_API_KEY = "AIzaSyBS5im3Kp10MrGHBs5pQ5-UdsHw3nqZ0GI"
-GEMINI_MODEL = "gemini-2.5-flash-lite-preview-09-2025"
-
-# --- 1. CONFIGURATION ---
-INPUT_JSON_FILE = 'agco_complete_data.json' # Your scraped data file
-
-# Root Category ID (Must match what you uploaded earlier)
-ROOT_CAT_ID = "CS_MASSEY_FERGUSON"
-
-# --- 2. AUTHENTICATION ---
-def get_cpq_headers():
-    url = f"{CPQ_BASE_URL}/basic/api/token"
-    payload = {'grant_type':'password', 'username':CPQ_USERNAME, 'password':CPQ_PASSWORD, 'domain':CPQ_DOMAIN}
-    try:
-        resp = requests.post(url, data=payload)
-        if resp.status_code != 200:
-            print(f"❌ Auth Failed: {resp.text}")
-            sys.exit(1)
-        return {'Authorization': f"Bearer {resp.json()['access_token']}", 'Content-Type': 'application/json'}
-    except Exception as e:
-        print(f"❌ Connection Error: {e}"); sys.exit(1)
-
-# --- 3. HELPER: ID GENERATOR ---
+# --- HELPER FUNCTIONS ---
 def make_sys_id(text):
-    if not text or text.upper() in ["ROOT", "HOME"]: return "CS_MASSEY_FERGUSON"
+    if not text: return f"{USER_PREFIX}_UNKNOWN"
     clean = re.sub(r'[^a-zA-Z0-9]', '_', str(text).strip())
     clean = re.sub(r'_+', '_', clean).strip('_')
-    return f"CS_{clean}".upper()[:50]
+    return f"{USER_PREFIX}_{clean}".upper()[:50]
 
-# --- 4. DIAGNOSTIC: FIND VALID PAYLOAD ---
-def detect_valid_structure(headers, prod_api):
-    print("🔬 DIAGNOSTIC: Attempting to fetch an existing product...")
-    try:
-        # Try to get ANY product to see its structure
-        resp = requests.get(prod_api, headers=headers, params={"$top": 1})
-        if resp.status_code == 200:
-            data = resp.json()
-            items = data.get('Items', []) or data.get('Value', [])
-            if items:
-                print("   ✅ Found existing product! Analyzing structure...")
-                sample = items[0]
-                # Check how ProductType is formatted
-                pt = sample.get('BasicInfo', {}).get('ProductType')
-                dt = sample.get('BasicInfo', {}).get('DisplayType')
-                print(f"   ℹ️ System expects: ProductType={pt}, DisplayType={dt}")
-                return pt, dt
-    except: pass
+def make_name(text):
+    if not text: return f"Unknown - {USER_FULL_NAME}"
+    return f"{str(text).strip()} - {USER_FULL_NAME}"
 
-    print("   ⚠️ No existing products found. Using 'Minimal' Strategy.")
-    return None, None
-
-# --- 5. INTELLIGENCE ENGINE ---
-def analyze_product(product_name, description):
-    print(f"   🧠 Analyzing '{product_name}'...", end=" ")
-    try:
-        client = genai.Client(api_key=GEMINI_API_KEY)
-        prompt = f"""
-        Product: {product_name}
-        Desc: {description}
-        Extract Price (Int) and 2 Attributes.
-        Schema: {{ "price": 50000, "attributes": [ {{ "name": "Transmission", "values": [{{"code": "STD", "display": "Standard", "price": 0}}] }} ] }}
-        """
-        response = client.models.generate_content(
-            model=GEMINI_MODEL, contents=prompt,
-            config=types.GenerateContentConfig(response_mime_type='application/json')
-        )
-        print("✅")
-        return json.loads(response.text)
-    except:
-        print("⚠️ Skip")
-        return {"price": 50000, "attributes": []}
-
-# --- 6. CPQ LOADER ---
-def process_product(prod_raw, headers, prod_api, attr_api, valid_pt, valid_dt):
-    prod_name = prod_raw.get('title')
-    sys_id = make_sys_id(prod_name)
-    cat_sys_id = make_sys_id(prod_raw.get('parent', 'Root'))
-
-    ai_data = analyze_product(prod_name, prod_raw.get('description', ''))
-
-    # A. Create Attributes
-    for attr in ai_data.get('attributes', []):
-        attr_sys_id = f"CS_ATTR_{make_sys_id(attr['name'])[3:]}_{sys_id[6:10]}"
-        try:
-            requests.post(attr_api, headers=headers, json={
-                "SystemId": attr_sys_id, "Name": attr['name'], "DisplayType": "DropDown", "Active": True,
-                "Values": [{"ValueCode": v['code'], "Display": v['display'], "Price": v['price']} for v in attr['values']]
-            })
-        except: pass
-
-    # B. Upsert Product
-    print(f"   🚀 Upserting Product...", end=" ")
-
-    # BASE PAYLOAD (Minimal)
-    basic_info = {
-        "SystemId": sys_id,
-        "CategorySystemId": cat_sys_id,
-        "PartNumber": sys_id,
-        "Name": f"Chirag Singhal - {prod_name}",
-        "Active": True,
-        "BasePrice": ai_data.get('price', 50000),
-        "Description": prod_raw.get('description', '')[:250],
-        # OData Date Format is universally safer
-        "EndStatus": { "EffectiveFrom": "/Date(1577836800000)/", "Active": True }
-    }
-
-    # Only add Types if we found valid ones, otherwise let system default
-    if valid_pt is not None: basic_info["ProductType"] = valid_pt
-    if valid_dt is not None: basic_info["DisplayType"] = valid_dt
-
-    payload = {"BasicInfo": basic_info}
-
-    # Check Exists
-    exists = requests.get(f"{prod_api}({sys_id})", headers=headers).status_code == 200
-
-    if exists:
-        resp = requests.put(f"{prod_api}({sys_id})", headers=headers, json=payload)
-        action = "Updated"
-    else:
-        resp = requests.post(prod_api, headers=headers, json=payload)
-        action = "Created"
-
-    if resp.status_code in [200, 201]:
-        print(f"✅ {action}")
-        # Link Attributes
-        for attr in ai_data.get('attributes', []):
-            attr_id = f"CS_ATTR_{make_sys_id(attr['name'])[3:]}_{sys_id[6:10]}"
-            try:
-                requests.post(f"{prod_api}({sys_id})/attributes", headers=headers, json={
-                    "SystemId": attr_id, "Required": False, "DisplayAs": "DropDown", "Rank": 10
-                })
-            except: pass
-    else:
-        print(f"❌ Failed ({resp.status_code})")
-        # Try to print specific message
-        try: print(f"      {resp.json()['error']['details'][0]['message']}")
-        except: print(f"      {resp.text[:200]}")
-
-# --- MAIN ---
-if __name__ == "__main__":
+# --- MAIN LOGIC ---
+def process_data():
     print(f"📂 Reading {INPUT_JSON_FILE}...")
+
     try:
         with open(INPUT_JSON_FILE, 'r', encoding='utf-8') as f:
-            raw_data = json.load(f)
-    except: sys.exit(1)
+            data = json.load(f)
+    except FileNotFoundError:
+        print(f"❌ ERROR: Could not find {INPUT_JSON_FILE}.")
+        return
 
-    products = [i for i in raw_data if i.get('isLeaf') or i.get('depth', 0) >= 3]
-    print(f"🎯 Found {len(products)} products.")
+    # 1. Define Columns (FIXED: Changed 'Category' to 'Categories')
+    all_columns = [
+        "Product System ID", "Product Name", "Part Number", "Categories", # <--- FIXED
+        "Product Type", "Display Type", "Active", "Price", "Description",
+        "ID", "UPC", "MPN", "Product Family Code", "Image",
+        "AlternativeText", "Cost", "Rank", "Weight", "Start Date",
+        "End Date", "Quote Description", "Long Description", "Permissions",
+        "UI type", "Recurring Price", "Recurring Cost", "Delete", "External Id",
+        "Inventory", "Lead Time", "Product Version", "Pricing Mechanism", "Pricing Code",
+        "Is Synced From Back Office", "Order Item Type", "Auto Renewal Indicator",
+        "Unit Of Measure", "General Item Category Group", "S/4 Subscription Item Category Type",
+        "User can enter quantity", "End of Life Status", "Replacement Product",
+        "Created By", "Date Created", "Modified By", "Modified Date",
+        "shipp::Express", "shipp::Express Shipping", "shipp::Standard", "shipp::Standard Shipping",
+        "Status"
+    ]
 
-    headers = get_cpq_headers()
-    PROD_API = f"{CPQ_BASE_URL}/api/product/v1/products"
-    ATTR_API = f"{CPQ_BASE_URL}/api/product/v1/attributes"
+    rows = []
 
-    # 1. RUN DIAGNOSTIC
-    VALID_PT, VALID_DT = detect_valid_structure(headers, PROD_API)
+    # 2. Iterate JSON Data
+    for item in data:
+        title = item.get('title', 'Unknown')
+        parent_name = item.get('parent', 'ROOT')
+        depth = item.get('depth', 0)
+        is_leaf = item.get('isLeaf', False)
+        description = item.get('description', '')
+        image_url = item.get('image', '')
 
-    # 2. RUN BATCH
-    for i, prod in enumerate(products):
-        print(f"\n[{i+1}/{len(products)}] {prod.get('title')}")
-        if i > 0 and i % 10 == 0: headers = get_cpq_headers()
+        sys_id = make_sys_id(title)
 
-        process_product(prod, headers, PROD_API, ATTR_API, VALID_PT, VALID_DT)
-        time.sleep(1.5)
+        # Determine Category Code (Parent)
+        if parent_name in ["ROOT", "Home"]:
+            cat_code = make_sys_id("Massey Ferguson")
+        else:
+            cat_code = make_sys_id(parent_name)
+
+        # Logic: Is this a Product?
+        if is_leaf or depth >= 3:
+
+            # 3. Map Data to Columns
+            row = {col: "" for col in all_columns} # Initialize all empty
+
+            # Core Identity
+            row["Product System ID"] = sys_id
+            row["Part Number"] = sys_id
+            row["Product Name"] = make_name(title)
+            row["Categories"] = cat_code  # <--- Mapped to new column name
+
+            # Details
+            row["Description"] = description[:255] if description else title
+            row["Long Description"] = description
+            row["Quote Description"] = f"{title} - Configurable Tractor"
+            row["Image"] = image_url
+
+            # Configuration Settings
+            row["Product Type"] = "Configurable"
+            row["Display Type"] = "Configuration" # CPQ often expects "Configuration" or "1"
+            row["UI type"] = "Configuration"
+            row["Active"] = "TRUE"
+
+            # Pricing & Logistics
+            row["Price"] = DEFAULT_PRICE
+            row["Cost"] = "35000"
+            row["Pricing Mechanism"] = "Custom Pricing"
+            row["Unit Of Measure"] = "PC"
+            row["User can enter quantity"] = "TRUE"
+
+            # Defaults
+            row["Rank"] = "1"
+            row["Weight"] = "1000"
+            row["Delete"] = "FALSE"
+            row["Is Synced From Back Office"] = "FALSE"
+
+            rows.append(row)
+
+    # --- 3. OUTPUT GENERATION ---
+    if rows:
+        df = pd.DataFrame(rows)
+        df = df[all_columns] # Enforce order
+
+        print(f"💾 Writing to {OUTPUT_EXCEL_FILE}...")
+        df.to_excel(OUTPUT_EXCEL_FILE, index=False)
+        print(f"✅ Success! Generated {OUTPUT_EXCEL_FILE} with {len(df)} products.")
+        print("   -> 'Category' column renamed to 'Categories'. Try uploading this file.")
+    else:
+        print("⚠️ No products found in JSON data.")
+
+if __name__ == "__main__":
+    process_data()
