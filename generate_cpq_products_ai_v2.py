@@ -5,9 +5,9 @@ import os
 
 # --- CONFIGURATION ---
 INPUT_JSON_FILE = 'agco_complete_data.json'
-OUTPUT_EXCEL_FILE = 'Essential_CPQ_Products.xlsx'
+OUTPUT_EXCEL_FILE = 'CPQ_Product_Import_Final.xlsx'
 
-# User Settings
+# Naming Convention
 USER_PREFIX = "CS"
 USER_FULL_NAME = "Chirag Singhal"
 
@@ -33,24 +33,21 @@ def process_data():
         print(f"❌ ERROR: Could not find {INPUT_JSON_FILE}.")
         return
 
-    # 1. ESSENTIAL COLUMNS ONLY
-    # These are the absolute minimum required to create a Configurable Product
-    essential_columns = [
-        "Product System ID",  # Unique Key
-        "Product Name",       # Display Name
-        "Part Number",        # Often same as System ID
-        "Categories",         # REQUIRED (Plural) - The link to the folder
-        "Product Type",       # "Configurable"
-        "Display Type",       # "Configuration"
-        "Active",             # "TRUE"
-        "Price",              # Base Price
-        "Description",        # Short Description
-        "Unit Of Measure"     # "PC" or similar is often required
+    # 1. ESSENTIAL COLUMNS (Exact Headers Required by CPQ)
+    required_columns = [
+        "Product System ID",
+        "Product Name",
+        "Part Number",
+        "Categories",          # Fixed: Must be Plural
+        "Product Type",
+        "Display Type",
+        "Active",
+        "Base Price",          # or just "Price" depending on version, usually Base Price works
+        "Description"
     ]
 
     rows = []
 
-    # 2. Iterate JSON Data
     for item in data:
         title = item.get('title', 'Unknown')
         parent_name = item.get('parent', 'ROOT')
@@ -60,40 +57,44 @@ def process_data():
 
         sys_id = make_sys_id(title)
 
-        # Determine Category Code (Parent)
+        # Determine Category System ID
         if parent_name in ["ROOT", "Home"]:
             cat_code = make_sys_id("Massey Ferguson")
         else:
             cat_code = make_sys_id(parent_name)
 
-        # Logic: Is this a Product?
+        # Filter for actual products
         if is_leaf or depth >= 3:
 
-            # 3. Map Data to Columns
+            # 2. CREATE ROW
             row = {
                 "Product System ID": sys_id,
                 "Product Name": make_name(title),
                 "Part Number": sys_id,
-                "Categories": cat_code,  # Correct Column Name
+
+                # FIX 1: Column Name is 'Categories'
+                "Categories": cat_code,
+
+                # FIX 2: Valid Values for Import
                 "Product Type": "Configurable",
-                "Display Type": "Configuration",
+                "Display Type": "Configurable Product", # Changed from 'Configuration' to match UI Type
+
                 "Active": "TRUE",
-                "Price": "50000",
-                "Description": description[:255] if description else title,
-                "Unit Of Measure": "PC"
+                "Base Price": "50000",
+                "Description": description[:255] if description else title
             }
             rows.append(row)
 
-    # --- 3. OUTPUT GENERATION ---
+    # 3. WRITE TO EXCEL
     if rows:
         df = pd.DataFrame(rows)
-        # Enforce column order
-        df = df[essential_columns]
+        # Ensure exact column order
+        df = df[required_columns]
 
         print(f"💾 Writing to {OUTPUT_EXCEL_FILE}...")
         df.to_excel(OUTPUT_EXCEL_FILE, index=False)
         print(f"✅ Success! Generated {OUTPUT_EXCEL_FILE} with {len(df)} products.")
-        print("   -> Upload this file to Setup > Product Catalog > Bulk Import (Products).")
+        print("   -> Upload this file to Setup > Product Catalog > Bulk Import.")
     else:
         print("⚠️ No products found in JSON data.")
 
