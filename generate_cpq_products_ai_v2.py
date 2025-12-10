@@ -5,9 +5,9 @@ import os
 
 # --- CONFIGURATION ---
 INPUT_JSON_FILE = 'agco_complete_data.json'
-OUTPUT_EXCEL_FILE = 'CPQ_Product_Import_Final.xlsx'
+OUTPUT_EXCEL_FILE = 'SAP_CPQ_Product_Import_Clean.xlsx'
 
-# Naming Convention
+# User Settings
 USER_PREFIX = "CS"
 USER_FULL_NAME = "Chirag Singhal"
 
@@ -33,17 +33,19 @@ def process_data():
         print(f"❌ ERROR: Could not find {INPUT_JSON_FILE}.")
         return
 
-    # 1. ESSENTIAL COLUMNS (Exact Headers Required by CPQ)
+    # 1. REQUIRED COLUMNS ONLY
+    # These headers are standard for SAP CPQ Product Bulk Import
     required_columns = [
-        "Product System ID",
-        "Product Name",
-        "Part Number",
-        "Categories",          # Fixed: Must be Plural
-        "Product Type",
-        "Display Type",
-        "Active",
-        "Base Price",          # or just "Price" depending on version, usually Base Price works
-        "Description"
+        "Product System ID",   # Mandatory key
+        "Product Name",        # Mandatory name
+        "Part Number",         # Highly recommended
+        "Categories",          # Mandatory (Plural)
+        "Product Type",        # Mandatory (Configurable vs Simple)
+        "Display Type",        # Mandatory (UI behavior)
+        "Active",              # Mandatory (Status)
+        "Base Price",          # Mandatory for pricing
+        "Description",         # Optional but good
+        "Unit Of Measure"      # Often required
     ]
 
     rows = []
@@ -57,13 +59,13 @@ def process_data():
 
         sys_id = make_sys_id(title)
 
-        # Determine Category System ID
+        # Determine Category Code
         if parent_name in ["ROOT", "Home"]:
             cat_code = make_sys_id("Massey Ferguson")
         else:
             cat_code = make_sys_id(parent_name)
 
-        # Filter for actual products
+        # Logic: Treat as Product if leaf or deep enough
         if is_leaf or depth >= 3:
 
             # 2. CREATE ROW
@@ -71,24 +73,25 @@ def process_data():
                 "Product System ID": sys_id,
                 "Product Name": make_name(title),
                 "Part Number": sys_id,
-
-                # FIX 1: Column Name is 'Categories'
                 "Categories": cat_code,
 
-                # FIX 2: Valid Values for Import
+                # FIX 1: Use 'Configurable' for Type
                 "Product Type": "Configurable",
-                "Display Type": "Configurable Product", # Changed from 'Configuration' to match UI Type
+
+                # FIX 2: Use 'Configurable Product' for Display (Solves Invalid UI Type)
+                "Display Type": "Configurable Product",
 
                 "Active": "TRUE",
                 "Base Price": "50000",
-                "Description": description[:255] if description else title
+                "Description": description[:255] if description else title,
+                "Unit Of Measure": "PC"
             }
             rows.append(row)
 
     # 3. WRITE TO EXCEL
     if rows:
         df = pd.DataFrame(rows)
-        # Ensure exact column order
+        # Enforce column order
         df = df[required_columns]
 
         print(f"💾 Writing to {OUTPUT_EXCEL_FILE}...")
