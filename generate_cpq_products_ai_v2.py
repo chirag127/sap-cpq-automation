@@ -62,30 +62,21 @@ def get_headers():
 # --- AI ENGINE ---
 def analyze_product_with_ai(product_name, description):
     print(f"   🧠 Analyzing '{product_name}'...", end=" ")
-
     try:
         client = genai.Client(api_key=GEMINI_API_KEY)
         prompt = f"""
-        Product: "{product_name}"
-        Context: "{description}"
-        Task: Extract Price (Integer USD) and 2 Attributes (Name, 2 Values each).
-        Output JSON: {{ "price": 50000, "attributes": [ {{ "name": "Trans", "values": [{{"code": "A", "display": "A", "price": 0}}] }} ] }}
+        Extract numeric price (USD integer) and 2 attributes for: "{product_name}".
+        Output JSON: {{ "price": 50000, "attributes": [ {{ "name": "Engine", "values": [{{"code": "S", "display": "Std", "price": 0}}] }} ] }}
         """
         response = client.models.generate_content(model=GEMINI_MODEL, contents=prompt)
         json_match = re.search(r'\{.*\}', response.text, re.DOTALL)
         if json_match:
             print("✅ Done")
             return json.loads(json_match.group(0))
-    except:
-        print(f"⚠️ AI Skip")
+    except: pass
 
-    # Fallback
-    return {
-        "price": 50000,
-        "attributes": [
-            {"name": "Configuration", "values": [{"code": "STD", "display": "Standard", "price": 0}]}
-        ]
-    }
+    print(f"⚠️ Skip")
+    return {"price": 50000, "attributes": [{"name": "Configuration", "values": [{"code": "STD", "display": "Standard", "price": 0}]}]}
 
 # --- CPQ LOADER ---
 def process_product(prod_raw, headers, prod_api, attr_api):
@@ -97,73 +88,69 @@ def process_product(prod_raw, headers, prod_api, attr_api):
 
     # 1. CREATE ATTRIBUTES
     created_attr_ids = []
-    for attr in ai_data['attributes']:
+    for attr in ai_data.get('attributes', []):
         attr_sys_id = f"CS_ATTR_{make_sys_id(attr['name'])[3:]}_{sys_id[6:10]}"
-        attr_payload = {
-            "SystemId": attr_sys_id,
-            "Name": attr['name'],
-            "DisplayType": "DropDown",
-            "Active": True,
-            "Values": [{"ValueCode": v['code'], "Display": v['display'], "Price": v['price']} for v in attr['values']]
-        }
         try:
-            requests.post(attr_api, headers=headers, json=attr_payload)
+            requests.post(attr_api, headers=headers, json={
+                "SystemId": attr_sys_id,
+                "Name": attr['name'],
+                "DisplayType": "DropDown",
+                "Active": True,
+                "Values": [{"ValueCode": v['code'], "Display": v['display'], "Price": v['price']} for v in attr['values']]
+            })
             created_attr_ids.append(attr_sys_id)
         except: pass
 
-    # 2. CREATE PRODUCT (FIXED SCHEMA)
+    # 2. CREATE PRODUCT (FIXED PAYLOAD)
     print(f"   🚀 Upserting Product...", end=" ")
 
-    # THE FIX: Wrap in BasicInfo
     product_payload = {
         "BasicInfo": {
             "SystemId": sys_id,
             "CategorySystemId": cat_sys_id,
             "PartNumber": sys_id,
             "Name": f"Chirag Singhal - {prod_name}",
-            "ProductType": "Configurable",
-            "DisplayType": "Configuration",
+            # FIX: Use Integers for Enums
+            "ProductType": 2,  # 2 = Configurable
+            "DisplayType": 1,  # 1 = Configuration (Standard)
             "Active": True,
-            "BasePrice": ai_data['price'],
-            "Description": prod_raw.get('description', '')[:255]
+            "BasePrice": ai_data.get('price', 50000),
+            "Description": prod_raw.get('description', '')[:255],
+            # FIX: Add EndStatus
+            "EndStatus": {
+                "EffectiveFrom": "/Date(1704067200000)/", # Generic past date
+                "Active": True
+            }
         }
     }
 
-    # Check if exists
-    check = requests.get(f"{prod_api}({sys_id})", headers=headers)
+    try:
+        # Check Exists
+        check = requests.get(f"{prod_api}({sys_id})", headers=headers)
 
-    if check.status_code == 200:
-        # Update (PUT)
-        # Note: PUT often requires ID in URL, not body for some fields
-        # Ideally we use PATCH for partial updates, but PUT is safer for overwrite
-        resp = requests.put(f"{prod_api}({sys_id})", headers=headers, json=product_payload)
-        action = "Updated"
-    else:
-        # Create (POST)
-        resp = requests.post(prod_api, headers=headers, json=product_payload)
-        action = "Created"
+        if check.status_code == 200:
+            resp = requests.put(f"{prod_api}({sys_id})", headers=headers, json=product_payload)
+            action = "Updated"
+        else:
+            resp = requests.post(prod_api, headers=headers, json=product_payload)
+            action = "Created"
 
-    if resp.status_code in [200, 201]:
-        print(f"✅ {action}")
-
-        # 3. LINK ATTRIBUTES
-        for attr_id in created_attr_ids:
-            link_payload = {
-                "SystemId": attr_id,
-                "Required": False,
-                "DisplayAs": "DropDown",
-                "Rank": 10
-            }
-            try:
-                requests.post(f"{prod_api}({sys_id})/attributes", headers=headers, json=link_payload)
+        if resp.status_code in [200, 201]:
+            print(f"✅ {action}")
+            # 3. LINK ATTRIBUTES
+            for attr_id in created_attr_ids:
+                try:
+                    requests.post(f"{prod_api}({sys_id})/attributes", headers=headers, json={
+                        "SystemId": attr_id, "Required": False, "DisplayAs": "DropDown", "Rank": 10
+                    })
+                except: pass
+        else:
+            print(f"❌ Failed ({resp.status_code})")
+            try: print(f"      Err: {resp.json().get('error', {}).get('message', 'Unknown')}")
             except: pass
-    else:
-        print(f"❌ Failed ({resp.status_code})")
-        # Print detailed error structure
-        try:
-            print(f"      Err: {json.dumps(resp.json(), indent=2)}")
-        except:
-            print(f"      Err: {resp.text[:200]}")
+
+    except Exception as e:
+        print(f"❌ Net Error: {e}")
 
 # --- MAIN ---
 if __name__ == "__main__":
@@ -171,8 +158,7 @@ if __name__ == "__main__":
     try:
         with open(INPUT_JSON_FILE, 'r', encoding='utf-8') as f:
             raw_data = json.load(f)
-    except:
-        print("❌ File not found."); sys.exit()
+    except: sys.exit(1)
 
     products = [i for i in raw_data if i.get('isLeaf') or i.get('depth', 0) >= 3]
     print(f"🎯 Found {len(products)} products.")
@@ -186,4 +172,4 @@ if __name__ == "__main__":
         if i > 0 and i % 10 == 0: headers = get_headers()
 
         process_product(prod, headers, PROD_API, ATTR_API)
-        time.sleep(2) # Increased wait to prevent SSL errors
+        time.sleep(3) # Increase wait to stop SSL errors
