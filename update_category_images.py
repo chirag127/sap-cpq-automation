@@ -1,8 +1,11 @@
+
 import requests
 import json
 import time
 from googlesearch import search
+import sys
 
+# --- CONFIGURATION ---
 # --- CONFIGURATION ---
 CPQ_BASE_URL = "https://tataconsultancyservices-partner1.cpq.cloud.sap"
 CPQ_TOKEN_URL = f"{CPQ_BASE_URL}/basic/api/token"
@@ -14,7 +17,7 @@ CPQ_DOMAIN = "TATACONSULTANCYSERVICESLIMITED_PARTNER1"
 CPQ_PASSWORD = "REDACTED_CPQ_PASSWORD<=="  # Paste the long string from Setup > Users
 
 # Google Search Configuration
-SEARCH_SUFFIX = "Massey Ferguson official white background" # Helps find clean product images
+SEARCH_SUFFIX = "Massey Ferguson official white background"
 
 def get_cpq_token():
     """Generates a fresh Bearer Token from SAP CPQ"""
@@ -33,37 +36,30 @@ def get_cpq_token():
         return response.json()['access_token']
     except Exception as e:
         print(f"❌ Auth Failed: {e}")
-        exit()
+        sys.exit(1)
 
 def find_image_url(query):
     """
     Searches Google for an image URL matching the query.
-    Note: Real production apps use the Google Custom Search JSON API.
-    This is a simplified scraper approach.
+    Falls back to a placeholder if no direct image link is found.
     """
-    search_query = f"{query} {SEARCH_SUFFIX}"
-    print(f"   🔍 Searching for: '{search_query}'...")
+    clean_query = query.replace("Chirag Singhal - ", "").strip()
+    search_query = f"{clean_query} {SEARCH_SUFFIX}"
+    print(f"   🔍 Searching for: '{clean_query}'...", end=" ")
 
-    # We use a trick: search for direct image links or official site pages
-    # Since we can't scrape Google Images directly easily without an API Key,
-    # we will use a placeholder logic here.
-    # To make this WORK FOR REAL, you should put a real image URL or use a hardcoded map.
-
-    # OPTION A: Use a placeholder service that generates images based on text (Reliable)
-    # return f"https://dummyimage.com/600x400/A6192E/fff&text={query.replace(' ', '+')}"
-
-    # OPTION B: Attempt to find a real URL (Unreliable without API Key)
+    # OPTION 1: Try Google Search
     try:
         results = search(search_query, num_results=5, advanced=True)
         for result in results:
-            # Simple heuristic: try to find a jpg/png
-            if result.url.endswith('.jpg') or result.url.endswith('.png'):
+            if result.url.lower().endswith(('.jpg', '.png', '.jpeg')):
+                print("✅ Found URL")
                 return result.url
     except:
         pass
 
-    # Fallback to a clean placeholder if search fails
-    return f"https://placehold.co/600x400/A6192E/FFFFFF/png?text={query.replace(' ', '+')}"
+    # OPTION 2: Fallback Placeholder
+    print("⚠️ Using Placeholder")
+    return f"https://placehold.co/600x400/A6192E/FFFFFF/png?text={clean_query.replace(' ', '+')}"
 
 def update_categories():
     token = get_cpq_token()
@@ -75,51 +71,63 @@ def update_categories():
     # 1. GET ALL CATEGORIES
     print("📥 Fetching existing categories...")
     try:
-        # Filter for only YOUR categories to avoid touching system ones
-        # We assume they start with "CS_" based on your previous steps
-        response = requests.get(f"{CPQ_CAT_API}?$filter=startswith(SystemId,'CS_')", headers=headers)
-        categories = response.json()
+        # Fetch categories (Filtering in Python to be safe against OData version diffs)
+        response = requests.get(CPQ_CAT_API, headers=headers)
+        response.raise_for_status()
 
-        if 'Value' in categories: categories = categories['Value'] # Handle OData wrapper
+        data = response.json()
 
-        print(f"   Found {len(categories)} categories to update.")
+        # Handle different API response structures (List vs Dict wrapper)
+        categories = []
+        if isinstance(data, list):
+            categories = data
+        elif isinstance(data, dict):
+            categories = data.get('Items') or data.get('Value') or data.get('PagedList') or []
+
+        # Filter for your specific categories
+        my_cats = [c for c in categories if str(c.get('SystemId', '')).startswith('CS_')]
+        print(f"   Found {len(my_cats)} 'CS' categories to update.")
 
     except Exception as e:
         print(f"❌ Failed to get categories: {e}")
         return
 
     # 2. LOOP AND PATCH
-    for cat in categories:
-        cat_id = cat['Id']
-        sys_id = cat['SystemId']
-        name = cat['Name'].replace("Chirag Singhal - ", "") # Clean name for search
+    success_count = 0
+    for cat in my_cats:
+        cat_id = cat.get('Id')
+        sys_id = cat.get('SystemId')
+        name = cat.get('Name')
+
+        if not cat_id:
+            continue
 
         # Search for image
         image_url = find_image_url(name)
 
         # Prepare Patch Payload
-        # We assume the field is 'ImageUrl' or similar standard CPQ field
         payload = {
             "Id": cat_id,
             "ImageUrl": image_url
         }
 
-        print(f"   🖼️ Patching {sys_id} with image...")
-
         try:
-            # PATCH request to update specific fields
+            # PATCH/PUT request to update
             patch_url = f"{CPQ_CAT_API}({cat_id})"
-            resp = requests.put(patch_url, headers=headers, json=payload) # CPQ often uses PUT for updates
+            resp = requests.put(patch_url, headers=headers, json=payload)
 
             if resp.status_code in [200, 204]:
-                print(f"   ✅ Success: {sys_id}")
+                print(f"      💾 Updated {sys_id}")
+                success_count += 1
             else:
-                print(f"   ⚠️ Failed ({resp.status_code}): {resp.text}")
+                print(f"      ⚠️ Failed ({resp.status_code}): {resp.text}")
 
         except Exception as e:
-            print(f"   ❌ Error updating {sys_id}: {e}")
+            print(f"      ❌ Error updating {sys_id}: {e}")
 
-        time.sleep(1) # Be polite to the API
+        time.sleep(0.5) # Throttle requests
+
+    print(f"\n✅ Finished. Updated {success_count} categories.")
 
 if __name__ == "__main__":
     update_categories()
