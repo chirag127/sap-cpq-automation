@@ -27,6 +27,14 @@ GEMINI_MODEL = "gemini-2.5-flash-lite-preview-09-2025"
 # --- 1. CONFIGURATION ---
 INPUT_JSON_FILE = 'agco_complete_data.json' # Your scraped data file
 
+# --- HELPER: SYSTEM ID GENERATOR ---
+def make_sys_id(text):
+    """Matches the logic used in Category Creation"""
+    if not text: return "CS_UNKNOWN"
+    clean = re.sub(r'[^a-zA-Z0-9]', '_', str(text).strip())
+    clean = re.sub(r'_+', '_', clean).strip('_')
+    return f"CS_{clean}".upper()
+
 # --- 2. AUTHENTICATION ---
 def get_cpq_headers():
     url = f"{CPQ_BASE_URL}/basic/api/token"
@@ -51,147 +59,129 @@ def get_cpq_headers():
         print(f"❌ Connection Error: {e}")
         sys.exit(1)
 
-# --- 3. AUTO-DETECT API URL (THE FIX) ---
-def find_correct_endpoints(headers):
-    print("🔎 Detecting correct API Endpoints...")
-
-    # Possible patterns for SAP CPQ
-    patterns = [
-        "/api/product/v1",   # Standard Singular
-        "/api/products/v1",  # Plural (Newer tenants)
-        "/api/v1"            # Short
-    ]
+# --- 3. AUTO-DETECT ENDPOINTS ---
+def find_endpoints(headers):
+    print("🔎 Validating API Endpoints...")
+    # Prioritize Singluar 'product' which is standard
+    patterns = ["/api/product/v1", "/api/products/v1"]
 
     prod_url = None
     attr_url = None
 
-    # Test for Products Endpoint
     for p in patterns:
-        test_url = f"{CPQ_BASE_URL}{p}/products"
-        try:
-            # Request 1 item to check if endpoint exists
-            r = requests.get(test_url, headers=headers, params={"$top": 1})
-            if r.status_code in [200, 401]: # 200=OK, 401=Auth bad but URL good
-                print(f"   ✅ Products API found at: {test_url}")
-                prod_url = test_url
-                break
-        except: pass
+        if not prod_url:
+            u = f"{CPQ_BASE_URL}{p}/products"
+            if requests.get(u, headers=headers, params={"$top":1}).status_code in [200, 401]:
+                prod_url = u
+        if not attr_url:
+            u = f"{CPQ_BASE_URL}{p}/attributes"
+            if requests.get(u, headers=headers, params={"$top":1}).status_code in [200, 401]:
+                attr_url = u
 
-    # Test for Attributes Endpoint
-    for p in patterns:
-        test_url = f"{CPQ_BASE_URL}{p}/attributes"
-        try:
-            r = requests.get(test_url, headers=headers, params={"$top": 1})
-            if r.status_code in [200, 401]:
-                print(f"   ✅ Attributes API found at: {test_url}")
-                attr_url = test_url
-                break
-        except: pass
+    if not prod_url: prod_url = f"{CPQ_BASE_URL}/api/product/v1/products"
+    if not attr_url: attr_url = f"{CPQ_BASE_URL}/api/product/v1/attributes"
 
-    if not prod_url or not attr_url:
-        print("❌ Could not auto-detect API URLs. Check your Tenant URL.")
-        # Fallback to mixed if detection fails
-        if not prod_url: prod_url = f"{CPQ_BASE_URL}/api/product/v1/products"
-        if not attr_url: attr_url = f"{CPQ_BASE_URL}/api/product/v1/attributes"
-
+    print(f"   ✅ Products: {prod_url}")
+    print(f"   ✅ Attributes: {attr_url}")
     return prod_url, attr_url
 
 # --- 4. INTELLIGENCE ENGINE ---
-def generate_cpq_data(product_name, description, image_url):
-    print(f"   🧠 Analyzing '{product_name}'...")
+def generate_payload(product_name, parent_name, description):
+    print(f"   🧠 Designing '{product_name}'...")
+
+    # Generate IDs
+    prod_sys_id = make_sys_id(product_name)
+    cat_sys_id = make_sys_id(parent_name)
+
+    client = genai.Client(api_key=GEMINI_API_KEY)
+
+    prompt = f"""
+    Act as SAP CPQ Architect.
+    Product: "{product_name}"
+    Parent Category: "{parent_name}" (ID: {cat_sys_id})
+    Desc: "{description}"
+
+    Task: Create JSON for SAP CPQ Product Creation.
+
+    CRITICAL RULES:
+    1. "SystemId": "{prod_sys_id}"
+    2. "CategorySystemId": "{cat_sys_id}"  <-- MUST INCLUDE THIS
+    3. "Name": "Chirag Singhal - {product_name}"
+    4. "ProductType": "Configurable"
+    5. "DisplayType": "Configuration"
+    6. "Active": true
+    7. "BasePrice": (Realistic Integer)
+    8. Attributes: Create 2 technical attributes (e.g. Engine, Transmission) with 2 values each.
+
+    Output JSON ONLY. No text.
+    {{
+        "SystemId": "...",
+        "CategorySystemId": "...",
+        "Name": "...",
+        "ProductType": "...",
+        "DisplayType": "...",
+        "Active": true,
+        "BasePrice": 0,
+        "Description": "...",
+        "Attributes": [
+            {{
+                "SystemId": "CS_ATTR_...",
+                "Name": "...",
+                "DisplayType": "DropDown",
+                "Values": [{{"ValueCode": "A", "Display": "Option A", "Price": 0}}]
+            }}
+        ]
+    }}
+    """
 
     try:
-        client = genai.Client(api_key=GEMINI_API_KEY)
-
-        # Cleaner System ID generation
-        clean_name = re.sub(r'[^a-zA-Z0-9]', '_', product_name).upper()
-        # Remove duplicate MF prefix if present
-        if clean_name.startswith("MF_"): clean_name = clean_name[3:]
-        sys_id = f"CS_MF_{clean_name}"[:30] # Limit length
-
-        prompt = f"""
-        Act as SAP CPQ Architect.
-        Product: "{product_name}"
-        Description: "{description}"
-
-        Create JSON for SAP CPQ Product Import.
-        1. SystemId: "{sys_id}"
-        2. Name: "Chirag Singhal - {product_name}"
-        3. BasePrice: Numeric integer (e.g. 55000)
-        4. Attributes: Define 2 technical attributes (e.g. Transmission, Hydraulics).
-
-        Output JSON ONLY.
-        {{
-            "SystemId": "{sys_id}",
-            "Name": "Chirag Singhal - {product_name}",
-            "DisplayType": "Configuration",
-            "ProductType": "Configurable",
-            "Active": true,
-            "BasePrice": 50000,
-            "Description": "{description[:100]}...",
-            "Attributes": [
-                {{
-                    "SystemId": "CS_ATTR_TRANS_{clean_name[:5]}",
-                    "Name": "Transmission",
-                    "DisplayType": "DropDown",
-                    "Values": [
-                        {{"ValueCode": "STD", "Display": "Standard", "Price": 0}},
-                        {{"ValueCode": "PRO", "Display": "Pro Spec", "Price": 2500}}
-                    ]
-                }}
-            ]
-        }}
-        """
-
         response = client.models.generate_content(model=GEMINI_MODEL, contents=prompt)
-
-        # Extract JSON
         json_match = re.search(r'\{.*\}', response.text, re.DOTALL)
         if json_match:
             return json.loads(json_match.group(0))
-        else:
-            raise ValueError("No JSON found")
-
+        raise ValueError("No JSON")
     except Exception as e:
         print(f"   ⚠️ AI Error: {e}. Using Fallback.")
         return {
-            "SystemId": sys_id,
+            "SystemId": prod_sys_id,
+            "CategorySystemId": cat_sys_id,
             "Name": f"Chirag Singhal - {product_name}",
-            "DisplayType": "Configuration",
             "ProductType": "Configurable",
+            "DisplayType": "Configuration",
             "Active": True,
             "BasePrice": 50000,
-            "Description": description[:200],
+            "Description": description[:250],
             "Attributes": []
         }
 
-# --- 5. CPQ LOADER ---
-def push_to_cpq(data, headers, prod_api, attr_api):
+# --- 5. UPLOADER ---
+def upload_product(data, headers, prod_api, attr_api):
     sys_id = data['SystemId']
 
-    # 1. Attributes
+    # 1. Create Attributes
     for attr in data.get('Attributes', []):
         try:
             requests.post(attr_api, headers=headers, json={
                 "SystemId": attr['SystemId'],
                 "Name": attr['Name'],
-                "DisplayType": attr['DisplayType'],
+                "DisplayType": "DropDown",
                 "Active": True,
                 "Values": attr['Values']
             })
         except: pass
 
-    # 2. Product
-    print(f"   🚀 Upserting: {sys_id}...", end=" ")
+    # 2. Upsert Product
+    print(f"   🚀 Upserting {sys_id}...", end=" ")
 
-    # Try Update first
-    check_url = f"{prod_api}({sys_id})"
-    check = requests.get(check_url, headers=headers)
+    # Try Update
+    check = requests.get(f"{prod_api}({sys_id})", headers=headers)
 
     if check.status_code == 200:
-        resp = requests.put(check_url, headers=headers, json=data)
+        # Update existing
+        resp = requests.put(f"{prod_api}({sys_id})", headers=headers, json=data)
         action = "Updated"
     else:
+        # Create new
         resp = requests.post(prod_api, headers=headers, json=data)
         action = "Created"
 
@@ -199,13 +189,14 @@ def push_to_cpq(data, headers, prod_api, attr_api):
         print(f"✅ {action}")
 
         # 3. Link Attributes
-        link_url = f"{prod_api}({sys_id})/attributes"
         for attr in data.get('Attributes', []):
             try:
-                requests.post(link_url, headers=headers, json={"SystemId": attr['SystemId']})
+                requests.post(f"{prod_api}({sys_id})/attributes", headers=headers, json={"SystemId": attr['SystemId']})
             except: pass
     else:
-        print(f"❌ Failed ({resp.status_code}): {resp.text[:100]}")
+        # Print detailed error for debugging
+        print(f"❌ Failed ({resp.status_code})")
+        print(f"      Err: {resp.text[:200]}") # Print first 200 chars of error
 
 # --- MAIN ---
 if __name__ == "__main__":
@@ -213,29 +204,26 @@ if __name__ == "__main__":
     try:
         with open(INPUT_JSON_FILE, 'r', encoding='utf-8') as f:
             raw_data = json.load(f)
-    except FileNotFoundError:
-        print("❌ File not found.")
-        sys.exit()
+    except:
+        print("❌ File not found."); sys.exit()
 
-    # Filter for products
+    # Filter
     products = [i for i in raw_data if i.get('isLeaf') or i.get('depth', 0) >= 3]
     print(f"🎯 Found {len(products)} products.")
 
-    # Auth & Setup
     headers = get_cpq_headers()
-    PROD_API, ATTR_API = find_correct_endpoints(headers)
+    PROD_API, ATTR_API = find_endpoints(headers)
 
     for i, prod in enumerate(products):
         print(f"\n[{i+1}/{len(products)}] {prod.get('title')}")
 
-        # Periodic Token Refresh
         if i > 0 and i % 10 == 0: headers = get_cpq_headers()
 
-        data = generate_cpq_data(
+        payload = generate_payload(
             prod.get('title'),
-            prod.get('description', ''),
-            prod.get('image', '')
+            prod.get('parent', 'Root'), # Pass Parent Category Name
+            prod.get('description', '')
         )
 
-        push_to_cpq(data, headers, PROD_API, ATTR_API)
+        upload_product(payload, headers, PROD_API, ATTR_API)
         time.sleep(1)
