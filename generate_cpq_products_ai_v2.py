@@ -31,6 +31,7 @@ INPUT_JSON_FILE = 'agco_complete_data.json' # Your scraped data file
 
 # Root Category ID (Must match what you uploaded earlier)
 ROOT_CAT_ID = "CS_MASSEY_FERGUSON"
+
 # --- 2. AUTHENTICATION ---
 def get_cpq_headers():
     url = f"{CPQ_BASE_URL}/basic/api/token"
@@ -81,3 +82,107 @@ def analyze_product(product_name, description):
         prompt = f"""
         Product: {product_name}
         Desc: {description}
+        Extract Price (Int) and 2 Attributes.
+        Schema: {{ "price": 50000, "attributes": [ {{ "name": "Transmission", "values": [{{"code": "STD", "display": "Standard", "price": 0}}] }} ] }}
+        """
+        response = client.models.generate_content(
+            model=GEMINI_MODEL, contents=prompt,
+            config=types.GenerateContentConfig(response_mime_type='application/json')
+        )
+        print("✅")
+        return json.loads(response.text)
+    except:
+        print("⚠️ Skip")
+        return {"price": 50000, "attributes": []}
+
+# --- 6. CPQ LOADER ---
+def process_product(prod_raw, headers, prod_api, attr_api, valid_pt, valid_dt):
+    prod_name = prod_raw.get('title')
+    sys_id = make_sys_id(prod_name)
+    cat_sys_id = make_sys_id(prod_raw.get('parent', 'Root'))
+
+    ai_data = analyze_product(prod_name, prod_raw.get('description', ''))
+
+    # A. Create Attributes
+    for attr in ai_data.get('attributes', []):
+        attr_sys_id = f"CS_ATTR_{make_sys_id(attr['name'])[3:]}_{sys_id[6:10]}"
+        try:
+            requests.post(attr_api, headers=headers, json={
+                "SystemId": attr_sys_id, "Name": attr['name'], "DisplayType": "DropDown", "Active": True,
+                "Values": [{"ValueCode": v['code'], "Display": v['display'], "Price": v['price']} for v in attr['values']]
+            })
+        except: pass
+
+    # B. Upsert Product
+    print(f"   🚀 Upserting Product...", end=" ")
+
+    # BASE PAYLOAD (Minimal)
+    basic_info = {
+        "SystemId": sys_id,
+        "CategorySystemId": cat_sys_id,
+        "PartNumber": sys_id,
+        "Name": f"Chirag Singhal - {prod_name}",
+        "Active": True,
+        "BasePrice": ai_data.get('price', 50000),
+        "Description": prod_raw.get('description', '')[:250],
+        # OData Date Format is universally safer
+        "EndStatus": { "EffectiveFrom": "/Date(1577836800000)/", "Active": True }
+    }
+
+    # Only add Types if we found valid ones, otherwise let system default
+    if valid_pt is not None: basic_info["ProductType"] = valid_pt
+    if valid_dt is not None: basic_info["DisplayType"] = valid_dt
+
+    payload = {"BasicInfo": basic_info}
+
+    # Check Exists
+    exists = requests.get(f"{prod_api}({sys_id})", headers=headers).status_code == 200
+
+    if exists:
+        resp = requests.put(f"{prod_api}({sys_id})", headers=headers, json=payload)
+        action = "Updated"
+    else:
+        resp = requests.post(prod_api, headers=headers, json=payload)
+        action = "Created"
+
+    if resp.status_code in [200, 201]:
+        print(f"✅ {action}")
+        # Link Attributes
+        for attr in ai_data.get('attributes', []):
+            attr_id = f"CS_ATTR_{make_sys_id(attr['name'])[3:]}_{sys_id[6:10]}"
+            try:
+                requests.post(f"{prod_api}({sys_id})/attributes", headers=headers, json={
+                    "SystemId": attr_id, "Required": False, "DisplayAs": "DropDown", "Rank": 10
+                })
+            except: pass
+    else:
+        print(f"❌ Failed ({resp.status_code})")
+        # Try to print specific message
+        try: print(f"      {resp.json()['error']['details'][0]['message']}")
+        except: print(f"      {resp.text[:200]}")
+
+# --- MAIN ---
+if __name__ == "__main__":
+    print(f"📂 Reading {INPUT_JSON_FILE}...")
+    try:
+        with open(INPUT_JSON_FILE, 'r', encoding='utf-8') as f:
+            raw_data = json.load(f)
+    except: sys.exit(1)
+
+    products = [i for i in raw_data if i.get('isLeaf') or i.get('depth', 0) >= 3]
+    print(f"🎯 Found {len(products)} products.")
+
+    headers = get_cpq_headers()
+    PROD_API = f"{CPQ_BASE_URL}/api/product/v1/products"
+    ATTR_API = f"{CPQ_BASE_URL}/api/product/v1/attributes"
+
+    # 1. RUN DIAGNOSTIC
+    VALID_PT, VALID_DT = detect_valid_structure(headers, PROD_API)
+
+    # 2. RUN BATCH
+    for i, prod in enumerate(products):
+        print(f"\n[{i+1}/{len(products)}] {prod.get('title')}")
+        if i > 0 and i % 10 == 0: headers = get_cpq_headers()
+
+        process_product(prod, headers, PROD_API, ATTR_API, VALID_PT, VALID_DT)
+        time.sleep(1.5)
