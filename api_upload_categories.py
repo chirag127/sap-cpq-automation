@@ -7,9 +7,9 @@ import sys
 # --- CONFIGURATION ---
 BASE_URL = "https://tataconsultancyservices-partner1.cpq.cloud.sap"
 # TRY 1: Use just your ID (remove @tcs.com)
-USERNAME = "chirag.singhal2"
+USERNAME = "REDACTED_CPQ_USERNAME<=="
 PASSWORD = "REDACTED_CPQ_PASSWORD<=="
-DOMAIN = "tataconsultancyservices-partner1"
+DOMAIN = "TATACONSULTANCYSERVICESLIMITED_PARTNER1"
 
 INPUT_FILE = '1_Upload_Categories_Chirag.xlsx'
 
