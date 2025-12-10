@@ -8,8 +8,8 @@ import sys
 # --- CONFIGURATION ---
 # --- CONFIGURATION ---
 CPQ_BASE_URL = "https://tataconsultancyservices-partner1.cpq.cloud.sap"
-CPQ_TOKEN_URL = f"{CPQ_BASE_URL}/basic/api/token"
-CPQ_CAT_API = f"{CPQ_BASE_URL}/api/products/v1/categories"
+TOKEN_URL = f"{CPQ_BASE_URL}/basic/api/token"
+CAT_API = f"{CPQ_BASE_URL}/api/products/v1/categories"
 
 # CPQ Credentials (for generating fresh token)
 CPQ_USERNAME = "REDACTED_CPQ_USERNAME<=="  # Username only
@@ -21,9 +21,9 @@ def get_token():
     print("🔑 Authenticating...")
     payload = {
         'grant_type': 'password',
-        'username': USERNAME,
-        'password': PASSWORD,
-        'domain': DOMAIN
+        'username': CPQ_USERNAME,
+        'password': CPQ_PASSWORD,
+        'domain': CPQ_DOMAIN
     }
     headers = {'Content-Type': 'application/x-www-form-urlencoded'}
 
