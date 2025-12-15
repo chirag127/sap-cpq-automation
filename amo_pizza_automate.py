@@ -2,111 +2,123 @@ import requests
 import json
 import time
 import sys
+import os
+import csv
 
-# --- CONFIGURATION ---
-# SAP CPQ Base URL and Credentials (Hardcoded as per request - one-time use only)
+# --- 1. CONFIGURATION (Hardcoded for Assignment) ---
 CPQ_BASE_URL = "https://tataconsultancyservices-partner1.cpq.cloud.sap"
 TOKEN_URL = f"{CPQ_BASE_URL}/basic/api/token"
 
-# API Endpoints (Based on standard SAP CPQ REST APIs)
-CAT_API = f"{CPQ_BASE_URL}/api/products/v1/categories"
-PROD_API = f"{CPQ_BASE_URL}/api/products/v1/products"
-ATTR_API = f"{CPQ_BASE_URL}/api/products/v1/attributes"
-RULE_API = f"{CPQ_BASE_URL}/api/products/v1/rules"
-MARKET_API = f"{CPQ_BASE_URL}/api/pricing/v1/markets"  # For creating markets if needed
-PRICING_TABLE_API = f"{CPQ_BASE_URL}/api/pricing/v1/pricingTables"  # For custom pricing tables
-PRICING_ENTRY_API = f"{CPQ_BASE_URL}/api/pricing/v1/pricingTableEntries"  # For entries in tables
-FILES_API = f"{CPQ_BASE_URL}/api/files/v1/files"  # For true image uploads (extended but commented out; manual if needed)
+# CORRECT REST API ENDPOINTS (v1)
+API_CAT = f"{CPQ_BASE_URL}/api/products/v1/categories"
+API_PROD = f"{CPQ_BASE_URL}/api/products/v1/products"
+API_ATTR = f"{CPQ_BASE_URL}/api/products/v1/attributes"
 
-CPQ_USERNAME = "REDACTED_CPQ_USERNAME<=="  # Username only
+# CREDENTIALS
+CPQ_USERNAME = "REDACTED_CPQ_USERNAME<=="
+CPQ_PASSWORD = "REDACTED_CPQ_PASSWORD<=="
 CPQ_DOMAIN = "TATACONSULTANCYSERVICESLIMITED_PARTNER1"
-CPQ_PASSWORD = "REDACTED_CPQ_PASSWORD<=="  # Hardcoded password as per request
 
-EMP_ID = "2800815"  # Your emp ID for naming
+# ASSIGNMENT DETAILS
+EMP_ID = "2800815"
+ROOT_CAT_NAME = "Amo la Pizza"
+SUB_CAT_NAME = f"Pizza Menu_{EMP_ID}"
+PROD_NAME = f"Pizza Order_{EMP_ID}"
+PROD_SYS_ID = f"PZ_ORD_{EMP_ID}"
 
-# Token Management
-current_token = None
-last_token_time = 0
-TOKEN_LIFETIME = 240  # Refresh 10s before 250s expiry
-
-# Pricing Data (Hardcoded from PDF - USD prices; CAD = 1.1 * USD)
-PRICING_DATA = [
-    {"part_number": "BX001", "description": "Gift box packing", "price_usd": 1, "price_cad": 1.1},
-    {"part_number": "PZ_SmTh", "description": "Small Thin Crust Pizza", "price_usd": 10, "price_cad": 11},
-    {"part_number": "PZ_MdTh", "description": "Medium Thin Crust Pizza", "price_usd": 12, "price_cad": 13.2},
-    {"part_number": "PZ_MdDd", "description": "Medium Deep Dish Pizza", "price_usd": 15, "price_cad": 16.5},
-    {"part_number": "PZ_LgTh", "description": "Large Thin Crust Pizza", "price_usd": 17, "price_cad": 18.7},
-    {"part_number": "PZ_LgDd", "description": "Large Deep Dish Pizza", "price_usd": 20, "price_cad": 22},
-    {"part_number": "TP001", "description": "Add Sausage", "price_usd": 1, "price_cad": 1.1},
-    {"part_number": "TP002", "description": "Add Pepperoni", "price_usd": 1, "price_cad": 1.1},
-    {"part_number": "TP003", "description": "Add Green Pepper", "price_usd": 1, "price_cad": 1.1},
-    {"part_number": "TP004", "description": "Add Onion", "price_usd": 1, "price_cad": 1.1},
-    {"part_number": "TP005", "description": "Add Mushrooms", "price_usd": 1, "price_cad": 1.1},
-    {"part_number": "TP006", "description": "Add Anchovy", "price_usd": 1, "price_cad": 1.1},
-    {"part_number": "ICC001", "description": "Small Ice Cream Cone with nuts", "price_usd": 1.25, "price_cad": 1.375},
-    {"part_number": "ICC002", "description": "Small Ice Cream Cone without nuts", "price_usd": 1, "price_cad": 1.1},
-    {"part_number": "HFS001", "description": "Small Hot Fudge Sundae with nuts", "price_usd": 1.75, "price_cad": 1.925},
-    {"part_number": "HFS002", "description": "Small Hot Fudge Sundae without nuts", "price_usd": 1.5, "price_cad": 1.65},
-    {"part_number": "MS001", "description": "Small Milkshake with nuts", "price_usd": 1.5, "price_cad": 1.65},
-    {"part_number": "MS002", "description": "Small Milkshake without nuts", "price_usd": 1.25, "price_cad": 1.375},
-    {"part_number": "YP001", "description": "Small Yogurt Parfait with nuts", "price_usd": 1.5, "price_cad": 1.65},
-    {"part_number": "YP002", "description": "Small Yogurt Parfait without nuts", "price_usd": 1.25, "price_cad": 1.375},
-    {"part_number": "CTL001", "description": "Small Chai Tea Latte with nuts", "price_usd": 1.5, "price_cad": 1.65},
-    {"part_number": "CTL002", "description": "Small Chai Tea Latte without nuts", "price_usd": 1.25, "price_cad": 1.375},
-    {"part_number": "ICC003", "description": "Medium Ice Cream Cone with nuts", "price_usd": 1.75, "price_cad": 1.925},
-    {"part_number": "ICC004", "description": "Medium Ice Cream Cone without nuts", "price_usd": 1.5, "price_cad": 1.65},
-    {"part_number": "HFS003", "description": "Medium Hot Fudge Sundae with nuts", "price_usd": 2.25, "price_cad": 2.475},
-    {"part_number": "HFS004", "description": "Medium Hot Fudge Sundae without nuts", "price_usd": 2, "price_cad": 2.2},
-    {"part_number": "MS003", "description": "Medium Milkshake with nuts", "price_usd": 2, "price_cad": 2.2},
-    {"part_number": "MS004", "description": "Medium Milkshake without nuts", "price_usd": 1.75, "price_cad": 1.925},
-    {"part_number": "YP003", "description": "Medium Yogurt Parfait with nuts", "price_usd": 2, "price_cad": 2.2},
-    {"part_number": "YP004", "description": "Medium Yogurt Parfait without nuts", "price_usd": 1.75, "price_cad": 1.925},
-    {"part_number": "CTL003", "description": "Medium Chai Tea Latte with nuts", "price_usd": 2, "price_cad": 2.2},
-    {"part_number": "CTL004", "description": "Medium Chai Tea Latte without nuts", "price_usd": 1.75, "price_cad": 1.925},
-    {"part_number": "ICC005", "description": "Large Ice Cream Cone with nuts", "price_usd": 2.25, "price_cad": 2.475},
-    {"part_number": "ICC006", "description": "Large Ice Cream Cone without nuts", "price_usd": 2, "price_cad": 2.2},
-    {"part_number": "HFS005", "description": "Large Hot Fudge Sundae with nuts", "price_usd": 2.75, "price_cad": 3.025},
-    {"part_number": "HFS006", "description": "Large Hot Fudge Sundae without nuts", "price_usd": 2.5, "price_cad": 2.75},
-    {"part_number": "MS005", "description": "Large Milkshake with nuts", "price_usd": 2.5, "price_cad": 2.75},
-    {"part_number": "MS006", "description": "Large Milkshake without nuts", "price_usd": 2.25, "price_cad": 2.475},
-    {"part_number": "YP005", "description": "Large Yogurt Parfait with nuts", "price_usd": 2.5, "price_cad": 2.75},
-    {"part_number": "YP006", "description": "Large Yogurt Parfait without nuts", "price_usd": 2.25, "price_cad": 2.475},
-    {"part_number": "CTL005", "description": "Large Chai Tea Latte with nuts", "price_usd": 2.5, "price_cad": 2.75},
-    {"part_number": "CTL006", "description": "Large Chai Tea Latte without nuts", "price_usd": 2.25, "price_cad": 2.475},
+# PRICING DATA (To be written to CSV)
+PRICING_ROWS = [
+    ["part_number", "description", "price_usd", "price_cad"],
+    ["BX001", "Gift box packing", "1", "1.1 * USD Price"],
+    ["PZ_SmTh", "Small Thin Crust Pizza", "10", "1.1 * USD Price"],
+    ["PZ_MdTh", "Medium Thin Crust Pizza", "12", "1.1 * USD Price"],
+    ["PZ_MdDd", "Medium Deep Dish Pizza", "15", "1.1 * USD Price"],
+    ["PZ_LgTh", "Large Thin Crust Pizza", "17", "1.1 * USD Price"],
+    ["PZ_LgDd", "Large Deep Dish Pizza", "20", "1.1 * USD Price"],
+    ["TP001", "Add Sausage", "1", "1.1 * USD Price"],
+    ["TP002", "Add Pepperoni", "1", "1.1 * USD Price"],
+    ["TP003", "Add Green Pepper", "1", "1.1 * USD Price"],
+    ["TP004", "Add Onion", "1", "1.1 * USD Price"],
+    ["TP005", "Add Mushrooms", "1", "1.1 * USD Price"],
+    ["TP006", "Add Anchovy", "1", "1.1 * USD Price"],
+    ["ICC001", "Small Ice Cream Cone with nuts", "1.25", "1.1 * USD Price"],
+    ["ICC002", "Small Ice Cream Cone without nuts", "1", "1.1 * USD Price"],
+    ["HFS001", "Small Hot Fudge Sundae with nuts", "1.75", "1.1 * USD Price"],
+    ["HFS002", "Small Hot Fudge Sundae without nuts", "1.5", "1.1 * USD Price"],
+    ["MS001", "Small Milkshake with nuts", "1.5", "1.1 * USD Price"],
+    ["MS002", "Small Milkshake without nuts", "1.25", "1.1 * USD Price"],
+    ["YP001", "Small Yogurt Parfait with nuts", "1.5", "1.1 * USD Price"],
+    ["YP002", "Small Yogurt Parfait without nuts", "1.25", "1.1 * USD Price"],
+    ["CTL001", "Small Chai Tea Latte with nuts", "1.5", "1.1 * USD Price"],
+    ["CTL002", "Small Chai Tea Latte without nuts", "1.25", "1.1 * USD Price"],
+    ["ICC003", "Medium Ice Cream Cone with nuts", "1.75", "1.1 * USD Price"],
+    ["ICC004", "Medium Ice Cream Cone without nuts", "1.5", "1.1 * USD Price"],
+    ["HFS003", "Medium Hot Fudge Sundae with nuts", "2.25", "1.1 * USD Price"],
+    ["HFS004", "Medium Hot Fudge Sundae without nuts", "2", "1.1 * USD Price"],
+    ["MS003", "Medium Milkshake with nuts", "2", "1.1 * USD Price"],
+    ["MS004", "Medium Milkshake without nuts", "1.75", "1.1 * USD Price"],
+    ["YP003", "Medium Yogurt Parfait with nuts", "2", "1.1 * USD Price"],
+    ["YP004", "Medium Yogurt Parfait without nuts", "1.75", "1.1 * USD Price"],
+    ["CTL003", "Medium Chai Tea Latte with nuts", "2", "1.1 * USD Price"],
+    ["CTL004", "Medium Chai Tea Latte without nuts", "1.75", "1.1 * USD Price"],
+    ["ICC005", "Large Ice Cream Cone with nuts", "2.25", "1.1 * USD Price"],
+    ["ICC006", "Large Ice Cream Cone without nuts", "2", "1.1 * USD Price"],
+    ["HFS005", "Large Hot Fudge Sundae with nuts", "2.75", "1.1 * USD Price"],
+    ["HFS006", "Large Hot Fudge Sundae without nuts", "2.5", "1.1 * USD Price"],
+    ["MS005", "Large Milkshake with nuts", "2.5", "1.1 * USD Price"],
+    ["MS006", "Large Milkshake without nuts", "2.25", "1.1 * USD Price"],
+    ["YP005", "Large Yogurt Parfait with nuts", "2.5", "1.1 * USD Price"],
+    ["YP006", "Large Yogurt Parfait without nuts", "2.25", "1.1 * USD Price"],
+    ["CTL005", "Large Chai Tea Latte with nuts", "2.5", "1.1 * USD Price"],
+    ["CTL006", "Large Chai Tea Latte without nuts", "2.25", "1.1 * USD Price"]
 ]
 
-# Attribute Definitions (From PDF, with EMP_ID suffix)
+# ATTRIBUTE DEFINITIONS
 ATTRIBUTES = [
-    {"name": f"Size_{EMP_ID}", "data_type": "Text", "attr_type": "SingleSelectMenu", "menu_options": "Small,Medium,Large", "default": "Small", "image_menu": True},
-    {"name": f"Crust Type_{EMP_ID}", "data_type": "Text", "attr_type": "SingleSelectMenu", "menu_options": "Thin Crust,Deep Dish", "default": "Thin Crust", "image_menu": True},
-    {"name": f"Specialty_{EMP_ID}", "data_type": "Text", "attr_type": "SingleSelectMenu", "menu_options": "Custom Pizza,Meat Lovers,The Works", "default": "Custom Pizza", "image_menu": True},
-    {"name": f"Toppings_{EMP_ID}", "data_type": "Text", "attr_type": "MultiSelectMenu", "menu_options": "Sausage,Pepperoni,Green Peppers,Onion,Mushrooms,Anchovy", "default": None, "image_menu": True},
-    {"name": f"Include Desserts_{EMP_ID}", "data_type": "Boolean", "attr_type": None, "menu_options": None, "default": "False", "image_menu": False},
-    # Container/Array Attributes
-    {"name": f"Number of Desserts_{EMP_ID}", "data_type": "Integer", "attr_type": "TextField", "menu_options": None, "default": "1", "array_type": "NO", "array_control": True},
-    {"name": f"Dessert Type_{EMP_ID}", "data_type": "Text", "attr_type": "SingleSelectMenu", "menu_options": "Ice Cream Cone,Hot Fudge Sundae,Milkshake,Yogurt Parfait,Chai Tea Latte", "default": None, "array_type": "YES", "array_control": False},
-    {"name": f"Dessert Size_{EMP_ID}", "data_type": "Text", "attr_type": "SingleSelectMenu", "menu_options": "Small,Medium,Large", "default": None, "array_type": "YES", "array_control": False},
-    # Container
-    {"name": f"Dessert Options_{EMP_ID}", "data_type": "Container", "included_attrs": [f"Dessert Type_{EMP_ID}", f"Dessert Size_{EMP_ID}"], "array_control_attr": f"Number of Desserts_{EMP_ID}"},
+    {
+        "name": f"Size_{EMP_ID}",
+        "type": "UserSelection",
+        "values": ["Small", "Medium", "Large"]
+    },
+    {
+        "name": f"Crust Type_{EMP_ID}",
+        "type": "UserSelection",
+        "values": ["Thin Crust", "Deep Dish"]
+    },
+    {
+        "name": f"Specialty_{EMP_ID}",
+        "type": "UserSelection",
+        "values": ["Custom Pizza", "Meat Lovers", "The Works"]
+    },
+    {
+        "name": f"Toppings_{EMP_ID}",
+        "type": "UserSelection",
+        "values": ["Sausage", "Pepperoni", "Green Peppers", "Onion", "Mushrooms", "Anchovy"]
+    },
+    {
+        "name": f"Include Desserts_{EMP_ID}",
+        "type": "Boolean",
+        "values": []
+    },
+    # Container Attributes
+    {
+        "name": f"Number of Desserts_{EMP_ID}",
+        "type": "Integer",
+        "values": []
+    },
+    {
+        "name": f"Dessert Type_{EMP_ID}",
+        "type": "UserSelection",
+        "values": ["Ice Cream Cone", "Hot Fudge Sundae", "Milkshake", "Yogurt Parfait", "Chai Tea Latte"]
+    },
+    {
+        "name": f"Dessert Size_{EMP_ID}",
+        "type": "UserSelection",
+        "values": ["Small", "Medium", "Large"]
+    }
 ]
 
-# Rules Definitions (From PDF, with EMP_ID suffix)
-RULES = [
-    {"name": f"Constrain Size by Crust Type_{EMP_ID}", "type": "Constraint", "condition": "Size is Small", "action": "Do not allow Deep Dish as a selection for Crust Type", "message": "Deep Dish Not Available in Size Small"},
-    {"name": f"Specialty Meat Lovers_{EMP_ID}", "type": "Recommendation", "condition": "Specialty is Meat Lovers", "action": "Force Set Toppings to Sausage and Pepperoni", "message": None},
-    {"name": f"Specialty The Works_{EMP_ID}", "type": "Recommendation", "condition": "Specialty is The Works", "action": "Force Set Toppings to Sausage, Pepperoni, Green Peppers, Onion, and Mushrooms", "message": None},
-    {"name": f"Hide Dessert Options_{EMP_ID}", "type": "HidingAttributes", "condition": "Include Desserts is False", "action": "Hide Number of Desserts, Dessert Type, and Dessert Size", "message": None},
-]
-
-# --- TOKEN MANAGEMENT ---
-def refresh_token_if_needed():
-    global current_token, last_token_time
-    if time.time() - last_token_time > TOKEN_LIFETIME:
-        print("🔄 Refreshing token...")
-        current_token = get_token()
-        last_token_time = time.time()
-    return current_token
-
+# --- 2. AUTHENTICATION ---
 def get_token():
     print("🔑 Authenticating...")
     payload = {
@@ -116,202 +128,210 @@ def get_token():
         'domain': CPQ_DOMAIN
     }
     headers = {'Content-Type': 'application/x-www-form-urlencoded'}
-
     try:
-        resp = requests.post(TOKEN_URL, data=payload, headers=headers)
-        if resp.status_code != 200:
-            print(f"❌ Auth Failed ({resp.status_code}): {resp.text}")
-            sys.exit(1)
-        token = resp.json()['access_token']
-        global last_token_time
-        last_token_time = time.time()
-        return token
+        resp = requests.post(TOKEN_URL, data=payload, headers=headers, timeout=15)
+        if resp.status_code == 200:
+            return resp.json()['access_token']
+        print(f"❌ Auth Failed: {resp.text}")
+        sys.exit(1)
     except Exception as e:
         print(f"❌ Connection Error: {e}")
         sys.exit(1)
 
-# --- IMAGE HANDLING (Placeholders Only - Google Removed; Upload Extension Commented) ---
-def get_image_url(entity_name, entity_type="product"):
-    # Simplified: Always use placeholder (reliable, no API issues)
-    # For true bulk upload: Uncomment below and provide local image files or URLs to fetch/upload
-    query = entity_name.replace(f"_{EMP_ID}", "").replace(" ", "+")
-    print(f"   🖼️  Generating placeholder for '{entity_name}'")
+# --- 3. HELPER FUNCTIONS ---
+def generate_system_id(name):
+    # Create a safe System ID: CS_2800815_NAME
+    clean_name = name.replace(" ", "_").replace("-", "_").upper()
+    # Limit length if necessary, but keep unique
+    return f"CS_{clean_name}"[:50]
 
-    # Placeholder URL
-    safe_text = query[:20]  # Truncate for readability
-    return f"https://placehold.co/800x600/EFEFEF/A6192E/png?text={safe_text}"
-
-    # Extension for True Uploads (Manual Prep: Download images to local dir, then upload)
-    # Example: Assume local images in ./images/ folder named like 'small_pizza.jpg'
-    # image_path = f"./images/{entity_name.lower().replace(' ', '_')}.jpg"
-    # if os.path.exists(image_path):
-    #     with open(image_path, 'rb') as f:
-    #         files = {'file': f}
-    #         upload_resp = requests.post(FILES_API, headers={'Authorization': f'Bearer {current_token}'}, files=files)
-    #         if upload_resp.status_code == 201:
-    #             file_id = upload_resp.json().get('Id')
-    #             return f"{CPQ_BASE_URL}/api/files/v1/files({file_id})/content"  # Or use FileId in payloads
-    # else:
-    #     print(f"   ⚠️  No local image for {entity_name}; using placeholder")
-    #     return get_placeholder_url(entity_name)
-
-# --- API HELPER WITH TOKEN REFRESH ---
-def api_call(method, url, headers, **kwargs):
-    refresh_token_if_needed()
-    auth_header = {'Authorization': f'Bearer {current_token}'}
-    full_headers = {**headers, **auth_header}
-    if method.upper() == 'GET':
-        resp = requests.get(url, headers=full_headers, **kwargs)
-    elif method.upper() == 'POST':
-        resp = requests.post(url, headers=full_headers, **kwargs)
-    elif method.upper() == 'PUT':
-        resp = requests.put(url, headers=full_headers, **kwargs)
-    else:
-        raise ValueError("Unsupported method")
-    return resp
-
-# --- 3. CREATE OR FIND ENTITY (Generic Helper) ---
-def create_or_find(headers, api_url, payload, find_key="Name", find_value=None):
-    if find_value is None:
-        find_value = payload.get(find_key, "")
-
-    # First, try to find existing (use api_call for refresh)
-    search_resp = api_call('GET', api_url, headers)
-    if search_resp.status_code == 200:
-        existing = search_resp.json()
-        existing_list = existing if isinstance(existing, list) else existing.get('Items', []) or existing.get('Value', [])
-        for item in existing_list:
-            if str(item.get(find_key, "")).strip() == str(find_value).strip():
-                print(f"   🎯 Found existing: {find_value}")
-                return item.get('Id')
-
-    # Create if not found
-    print(f"   ➕ Creating: {find_value}")
-    create_resp = api_call('POST', api_url, headers, json=payload)
-    if create_resp.status_code in [200, 201]:
-        new_id = create_resp.json().get('Id')
-        print(f"   ✅ Created ID: {new_id}")
-        return new_id
-    else:
-        print(f"   ❌ Create Failed: {create_resp.text}")
+def api_get(url, token, params=None):
+    headers = {'Authorization': f'Bearer {token}'}
+    try:
+        r = requests.get(url, headers=headers, params=params, timeout=15)
+        return r
+    except Exception as e:
+        print(f"   ⚠️ Network Error (GET): {e}")
         return None
 
-# --- 4. MAIN AUTOMATION STEPS ---
+def api_post(url, token, payload):
+    headers = {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
+    try:
+        r = requests.post(url, headers=headers, json=payload, timeout=15)
+        return r
+    except Exception as e:
+        print(f"   ⚠️ Network Error (POST): {e}")
+        return None
+
+def find_id_by_name(url, token, name, key="Name"):
+    # Searches for an item and returns its ID if found
+    r = api_get(url, token)
+    if r and r.status_code == 200:
+        data = r.json()
+        # Handle list in 'Items' or direct list
+        items = data.get('Items', []) if isinstance(data, dict) else data
+        for item in items:
+            if item.get(key) == name:
+                return item.get('Id')
+    return None
+
+# --- 4. MAIN WORKFLOW ---
 def run_automation():
-    global current_token
-    current_token = get_token()
-    headers = {'Content-Type': 'application/json'}
+    token = get_token()
 
-    created_ids = {}  # Track IDs for associations
+    print("\n--- 🍕 STARTING AMO LA PIZZA SETUP ---")
 
-    # Step 1: Create Categories and Product (Practice 8-1)
-    print("\n🍕 Step 1: Defining Configurable Product Structure")
+    # 1. CATEGORIES
+    print("\n[1/5] Setting up Categories...")
 
-    # Main Category: "Amo la Pizza"
-    main_cat_payload = {"Name": "Amo la Pizza", "ImageUrl": get_image_url("Amo la Pizza", "pizza category")}
-    cat_id = create_or_find(headers, CAT_API, main_cat_payload)
-    if cat_id:
-        created_ids['main_cat'] = cat_id
+    # Root Category
+    root_id = find_id_by_name(API_CAT, token, ROOT_CAT_NAME)
+    if not root_id:
+        payload = {
+            "SystemId": generate_system_id(ROOT_CAT_NAME),
+            "Name": ROOT_CAT_NAME,
+            "Active": True
+        }
+        r = api_post(API_CAT, token, payload)
+        if r and r.status_code in [200, 201]:
+            root_id = r.json()['Id']
+            print(f"   ✅ Created Root Category: {ROOT_CAT_NAME}")
+        else:
+            print(f"   ❌ Failed Root Category: {r.text if r else 'Error'}")
+            sys.exit(1)
+    else:
+        print(f"   ✅ Root Category Exists: {ROOT_CAT_NAME}")
 
-    # Subcategory: "Pizza Menu_2800815" (child of main_cat)
-    sub_cat_payload = {"Name": f"Pizza Menu_{EMP_ID}", "ParentId": cat_id, "ImageUrl": get_image_url(f"Pizza Menu_{EMP_ID}")}
-    sub_cat_id = create_or_find(headers, CAT_API, sub_cat_payload)
-    if sub_cat_id:
-        created_ids['sub_cat'] = sub_cat_id
+    # Sub Category
+    sub_id = find_id_by_name(API_CAT, token, SUB_CAT_NAME)
+    if not sub_id:
+        payload = {
+            "SystemId": generate_system_id(SUB_CAT_NAME),
+            "Name": SUB_CAT_NAME,
+            "ParentId": root_id, # Linking to Parent
+            "Active": True
+        }
+        r = api_post(API_CAT, token, payload)
+        if r and r.status_code in [200, 201]:
+            sub_id = r.json()['Id']
+            print(f"   ✅ Created Sub Category: {SUB_CAT_NAME}")
+        else:
+            print(f"   ❌ Failed Sub Category: {r.text if r else 'Error'}")
+    else:
+        print(f"   ✅ Sub Category Exists: {SUB_CAT_NAME}")
 
-    # Product: "Pizza Order_2800815", Type: "Accessories", Base Price: 0, Category: sub_cat
-    prod_payload = {
-        "Name": f"Pizza Order_{EMP_ID}",
-        "ProductType": "Accessories",
-        "BasePrice": 0,
-        "CategoryId": sub_cat_id,
-        "ImageUrl": get_image_url(f"Pizza Order_{EMP_ID}", "product")
-    }
-    prod_id = create_or_find(headers, PROD_API, prod_payload, "Name", f"Pizza Order_{EMP_ID}")
-    if prod_id:
-        created_ids['product'] = prod_id
+    # 2. PRODUCT
+    print("\n[2/5] Setting up Product...")
+    prod_id = None
+    # Check by SystemID first as it's more unique
+    search_sys = api_get(f"{API_PROD}?$filter=SystemId eq '{PROD_SYS_ID}'", token)
+    if search_sys and search_sys.status_code == 200 and search_sys.json().get('Items'):
+         prod_id = search_sys.json()['Items'][0]['Id']
+         print(f"   ✅ Product Exists: {PROD_NAME}")
 
-    # Step 2: Add Attributes (Practice 8-2 & 8-3)
-    print("\n⚙️ Step 2: Adding Configurable & Container Attributes")
-    attr_ids = {}
+    if not prod_id:
+        payload = {
+            "SystemId": PROD_SYS_ID,
+            "Name": PROD_NAME,
+            "CategoryId": sub_id,
+            "ProductType": "Accessories", # Trying Accessories first, fallback to Simple if needed
+            "BasePrice": 0,
+            "Active": True,
+            "DisplayType": "Configuration"
+        }
+        r = api_post(API_PROD, token, payload)
+        if r and r.status_code in [200, 201]:
+            prod_id = r.json()['Id']
+            print(f"   ✅ Created Product: {PROD_NAME}")
+        else:
+            print(f"   ❌ Failed to Create Product: {r.text if r else 'Error'}")
+            # Fallback for some environments that don't like 'Accessories'
+            if r and "ProductType" in r.text:
+                print("   ⚠️ Retrying as 'Simple' product type...")
+                payload['ProductType'] = "Simple"
+                r = api_post(API_PROD, token, payload)
+                if r and r.status_code in [200, 201]:
+                    prod_id = r.json()['Id']
+                    print(f"   ✅ Created Product (Simple): {PROD_NAME}")
+
+    # 3. ATTRIBUTES
+    print("\n[3/5] Setting up Attributes & Menus...")
+
     for attr in ATTRIBUTES:
-        attr_payload = {
-            "Name": attr["name"],
-            "DataType": attr["data_type"],
-            "AttributeType": attr["attr_type"],
-            "MenuOptions": attr["menu_options"],
-            "DefaultValue": attr["default"],
-            "ImageMenu": attr["image_menu"],
-            "ProductId": prod_id,  # Associate to product
-            "ArrayType": attr.get("array_type"),
-            "ArrayControl": attr.get("array_control", False)
-        }
-        if "Container" in attr["data_type"]:
-            attr_payload["IncludedAttributes"] = attr["included_attrs"]
-            attr_payload["ArrayControlAttribute"] = attr["array_control_attr"]
-        attr_id = create_or_find(headers, ATTR_API, attr_payload)
-        if attr_id:
-            attr_ids[attr["name"]] = attr_id
+        attr_name = attr['name']
+        attr_sys_id = generate_system_id(attr_name)
+        attr_id = None
 
-    # Step 3: Add Rules (Practice 8-5)
-    print("\n📋 Step 3: Adding Configuration Rules")
-    for rule in RULES:
-        rule_payload = {
-            "Name": rule["name"],
-            "RuleType": rule["type"],
-            "Condition": rule["condition"],
-            "Action": rule["action"],
-            "Message": rule["message"],
-            "ProductId": prod_id  # Associate to product
-        }
-        rule_id = create_or_find(headers, RULE_API, rule_payload)
-        if rule_id:
-            print(f"   ✅ Rule Created: {rule['name']}")
-
-    # Step 4: Add Pricing Table & Entries (Practice 8-6)
-    print("\n💰 Step 4: Adding Table-Based Pricing")
-
-    # Create Market for CAD if needed (assume USD exists)
-    cad_market_payload = {"Name": "CAD", "Currency": "CAD"}
-    market_id = create_or_find(headers, MARKET_API, cad_market_payload, "Name", "CAD")
-    if market_id:
-        created_ids['cad_market'] = market_id
-
-    # Create Custom Pricing Table
-    table_payload = {"Name": f"Amo La Pizza Pricing_{EMP_ID}", "Description": "Custom pricing for pizza config"}
-    table_id = create_or_find(headers, PRICING_TABLE_API, table_payload)
-    if table_id:
-        print(f"   📊 Pricing Table ID: {table_id}")
-
-        # Add Entries
-        for entry in PRICING_DATA:
-            entry_payload = {
-                "PartNumber": entry["part_number"],
-                "Description": entry["description"],
-                "PricingTableId": table_id,
-                "Prices": [
-                    {"MarketId": 1, "Price": entry["price_usd"]}  # Assume USD Market ID=1; adjust if needed
-                ]
+        # Check existence
+        search = api_get(f"{API_ATTR}?$filter=Name eq '{attr_name}'", token)
+        if search and search.status_code == 200 and search.json().get('Items'):
+            attr_id = search.json()['Items'][0]['Id']
+            print(f"   🔹 Found Attribute: {attr_name}")
+        else:
+            # Create Attribute
+            payload = {
+                "SystemId": attr_sys_id,
+                "Name": attr_name,
+                "AttributeType": attr['type'],
+                "Active": True
             }
-            if market_id:
-                entry_payload["Prices"].append({"MarketId": market_id, "Price": entry["price_cad"]})
-            entry_resp = api_call('POST', PRICING_ENTRY_API, headers, json=entry_payload)
-            if entry_resp.status_code in [200, 201]:
-                print(f"   💵 Entry Added: {entry['part_number']}")
+            r = api_post(API_ATTR, token, payload)
+            if r and r.status_code in [200, 201]:
+                attr_id = r.json()['Id']
+                print(f"   ✅ Created Attribute: {attr_name}")
+            else:
+                print(f"   ❌ Failed Attribute {attr_name}: {r.text if r else 'Error'}")
+                continue
 
-    # Step 5: Layout (Practice 8-4) - MANUAL STEP (API limited; use UI for drag-drop)
-    print("\n🎨 Step 5: Creating Layout - MANUAL REQUIRED")
-    print("   ⚠️  Layout configuration (e.g., grid positions for attributes/images) is UI-based in CPQ.")
-    print("   Go to CPQ UI > Products > Pizza Order_2800815 > Layout Editor.")
-    print("   Drag attributes to match screenshot: Size/Crust/Toppings/Desserts in grids.")
-    print("   Associate images via Attribute settings (ImageMenu=True set; placeholders used).")
-    print("   For attribute option images (e.g., Small pizza icon): Manually upload per option in UI if placeholders insufficient.")
+        # Add Menu Values (For UserSelection)
+        if attr['type'] == "UserSelection" and attr['values'] and attr_id:
+            val_url = f"{API_ATTR}/{attr_id}/values"
+            # Get existing to avoid duplicates
+            existing = api_get(val_url, token).json()
+            existing_codes = [x['ValueCode'] for x in existing]
 
-    # Bulk Image Import Note: Placeholders used for product/category ImageUrl. For attribute grids:
-    # - UI: Edit Attribute > Menu Options > Add Image URLs per option (e.g., https://placehold.co/... for 'Small').
-    # - True Uploads: Prep local images, uncomment get_image_url upload logic, run script to POST to /api/files/v1/files.
+            for val in attr['values']:
+                if val not in existing_codes:
+                    val_payload = {"ValueCode": val, "Display": val}
+                    # We post values individually
+                    api_post(val_url, token, val_payload)
+            print(f"      Use selections synced.")
 
-    print("\n✅ Automation Complete! Check CPQ UI for verification. Manual: Only Layout & Fine-Tune Images.")
+        # 4. LINK ATTRIBUTE TO PRODUCT
+        # Endpoint: /api/products/v1/products/{prod_id}/attributes
+        if prod_id and attr_id:
+            link_url = f"{API_PROD}/{prod_id}/attributes"
+
+            # Check if linked? (Hard to check efficiently, so we try-catch the create)
+            link_payload = {
+                "AttributeId": attr_id,
+                "Rank": 10
+            }
+            # Many CPQs return 400 if already linked, which is fine
+            r_link = api_post(link_url, token, link_payload)
+            if r_link and r_link.status_code in [200, 201]:
+                 print(f"      🔗 Linked to Product")
+            elif r_link and "already assigned" in r_link.text:
+                 print(f"      🔗 Already Linked")
+
+    # 5. GENERATE CSV
+    print("\n[5/5] Generating Pricing CSV...")
+    filename = f"pricing_upload_{EMP_ID}.csv"
+    try:
+        with open(filename, 'w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerows(PRICING_ROWS)
+        print(f"   📄 Successfully generated: {filename}")
+        print(f"   👉 Path: {os.path.abspath(filename)}")
+    except Exception as e:
+        print(f"   ❌ CSV Gen Failed: {e}")
+
+    print("\n--- 🎉 AUTOMATION DONE ---")
+    print("NEXT STEPS:")
+    print("1. Go to CPQ Setup > Pricing/Calculations > Custom Tables.")
+    print(f"2. Create table 'Amo Pricing {EMP_ID}'.")
+    print(f"3. Import the file '{filename}' generated above.")
+    print("4. Manually add the Rules (Practice 8-5) in the 'Rules' tab of the product.")
 
 if __name__ == "__main__":
     run_automation()
