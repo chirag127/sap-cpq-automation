@@ -5,11 +5,11 @@ import sys
 import os
 import csv
 
-# --- 1. CONFIGURATION (Hardcoded for Assignment) ---
+# --- 1. CONFIGURATION ---
 CPQ_BASE_URL = "https://tataconsultancyservices-partner1.cpq.cloud.sap"
 TOKEN_URL = f"{CPQ_BASE_URL}/basic/api/token"
 
-# CORRECT REST API ENDPOINTS (v1)
+# API ENDPOINTS
 API_CAT = f"{CPQ_BASE_URL}/api/products/v1/categories"
 API_PROD = f"{CPQ_BASE_URL}/api/products/v1/products"
 API_ATTR = f"{CPQ_BASE_URL}/api/products/v1/attributes"
@@ -26,7 +26,7 @@ SUB_CAT_NAME = f"Pizza Menu_{EMP_ID}"
 PROD_NAME = f"Pizza Order_{EMP_ID}"
 PROD_SYS_ID = f"PZ_ORD_{EMP_ID}"
 
-# PRICING DATA (To be written to CSV)
+# PRICING DATA
 PRICING_ROWS = [
     ["part_number", "description", "price_usd", "price_cad"],
     ["BX001", "Gift box packing", "1", "1.1 * USD Price"],
@@ -73,63 +73,28 @@ PRICING_ROWS = [
     ["CTL006", "Large Chai Tea Latte without nuts", "2.25", "1.1 * USD Price"]
 ]
 
-# ATTRIBUTE DEFINITIONS
+# ATTRIBUTES
 ATTRIBUTES = [
-    {
-        "name": f"Size_{EMP_ID}",
-        "type": "UserSelection",
-        "values": ["Small", "Medium", "Large"]
-    },
-    {
-        "name": f"Crust Type_{EMP_ID}",
-        "type": "UserSelection",
-        "values": ["Thin Crust", "Deep Dish"]
-    },
-    {
-        "name": f"Specialty_{EMP_ID}",
-        "type": "UserSelection",
-        "values": ["Custom Pizza", "Meat Lovers", "The Works"]
-    },
-    {
-        "name": f"Toppings_{EMP_ID}",
-        "type": "UserSelection",
-        "values": ["Sausage", "Pepperoni", "Green Peppers", "Onion", "Mushrooms", "Anchovy"]
-    },
-    {
-        "name": f"Include Desserts_{EMP_ID}",
-        "type": "Boolean",
-        "values": []
-    },
-    # Container Attributes
-    {
-        "name": f"Number of Desserts_{EMP_ID}",
-        "type": "Integer",
-        "values": []
-    },
-    {
-        "name": f"Dessert Type_{EMP_ID}",
-        "type": "UserSelection",
-        "values": ["Ice Cream Cone", "Hot Fudge Sundae", "Milkshake", "Yogurt Parfait", "Chai Tea Latte"]
-    },
-    {
-        "name": f"Dessert Size_{EMP_ID}",
-        "type": "UserSelection",
-        "values": ["Small", "Medium", "Large"]
-    }
+    {"name": f"Size_{EMP_ID}", "type": "UserSelection", "values": ["Small", "Medium", "Large"]},
+    {"name": f"Crust Type_{EMP_ID}", "type": "UserSelection", "values": ["Thin Crust", "Deep Dish"]},
+    {"name": f"Specialty_{EMP_ID}", "type": "UserSelection", "values": ["Custom Pizza", "Meat Lovers", "The Works"]},
+    {"name": f"Toppings_{EMP_ID}", "type": "UserSelection", "values": ["Sausage", "Pepperoni", "Green Peppers", "Onion", "Mushrooms", "Anchovy"]},
+    {"name": f"Include Desserts_{EMP_ID}", "type": "Boolean", "values": []},
+    {"name": f"Number of Desserts_{EMP_ID}", "type": "Integer", "values": []},
+    {"name": f"Dessert Type_{EMP_ID}", "type": "UserSelection", "values": ["Ice Cream Cone", "Hot Fudge Sundae", "Milkshake", "Yogurt Parfait", "Chai Tea Latte"]},
+    {"name": f"Dessert Size_{EMP_ID}", "type": "UserSelection", "values": ["Small", "Medium", "Large"]}
 ]
 
 # --- 2. AUTHENTICATION ---
 def get_token():
     print("🔑 Authenticating...")
     payload = {
-        'grant_type': 'password',
-        'username': CPQ_USERNAME,
-        'password': CPQ_PASSWORD,
-        'domain': CPQ_DOMAIN
+        'grant_type': 'password', 'username': CPQ_USERNAME,
+        'password': CPQ_PASSWORD, 'domain': CPQ_DOMAIN
     }
     headers = {'Content-Type': 'application/x-www-form-urlencoded'}
     try:
-        resp = requests.post(TOKEN_URL, data=payload, headers=headers, timeout=15)
+        resp = requests.post(TOKEN_URL, data=payload, headers=headers, timeout=20)
         if resp.status_code == 200:
             return resp.json()['access_token']
         print(f"❌ Auth Failed: {resp.text}")
@@ -140,179 +105,156 @@ def get_token():
 
 # --- 3. HELPER FUNCTIONS ---
 def generate_system_id(name):
-    # Create a safe System ID: CS_2800815_NAME
-    clean_name = name.replace(" ", "_").replace("-", "_").upper()
-    # Limit length if necessary, but keep unique
-    return f"CS_{clean_name}"[:50]
+    # Ensure standard characters for System ID
+    clean = name.replace(" ", "_").replace("-", "_").upper()
+    return f"CS_{clean}"[:50]
 
-def api_get(url, token, params=None):
-    headers = {'Authorization': f'Bearer {token}'}
-    try:
-        r = requests.get(url, headers=headers, params=params, timeout=15)
-        return r
-    except Exception as e:
-        print(f"   ⚠️ Network Error (GET): {e}")
-        return None
-
-def api_post(url, token, payload):
+def api_call(method, url, token, payload=None):
     headers = {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
     try:
-        r = requests.post(url, headers=headers, json=payload, timeout=15)
+        if method == 'GET':
+            r = requests.get(url, headers=headers, params=payload, timeout=20)
+        else:
+            r = requests.post(url, headers=headers, json=payload, timeout=20)
         return r
     except Exception as e:
-        print(f"   ⚠️ Network Error (POST): {e}")
+        print(f"   ⚠️ Network Error ({method}): {e}")
         return None
 
-def find_id_by_name(url, token, name, key="Name"):
-    # Searches for an item and returns its ID if found
-    r = api_get(url, token)
+def find_id_by_filter(url, token, filter_str):
+    """Searches using OData filter and returns ID if found."""
+    # Example: $filter=Name eq 'My Item'
+    params = {'$filter': filter_str}
+    r = api_call('GET', url, token, params)
+
     if r and r.status_code == 200:
         data = r.json()
-        # Handle list in 'Items' or direct list
         items = data.get('Items', []) if isinstance(data, dict) else data
-        for item in items:
-            if item.get(key) == name:
-                return item.get('Id')
+        if items:
+            return items[0]['Id']
     return None
+
+def create_and_get_id(url, token, payload, name_field="Name"):
+    """
+    Tries to find item. If missing, creates it.
+    ALWAYS fetches ID via search after create to ensure correctness.
+    """
+    name_value = payload.get(name_field)
+    filter_str = f"{name_field} eq '{name_value}'"
+
+    # 1. Search First
+    existing_id = find_id_by_filter(url, token, filter_str)
+    if existing_id:
+        print(f"   ✅ Found Existing: {name_value}")
+        return existing_id
+
+    # 2. Create
+    r = api_call('POST', url, token, payload)
+
+    # 3. Handle Result
+    if r and r.status_code in [200, 201]:
+        # Try to get ID from response directly
+        try:
+            return r.json()['Id']
+        except (KeyError, ValueError, TypeError):
+            # Fallback: Search again immediately
+            print(f"   ⚠️ Response missing ID, re-fetching...")
+            retry_id = find_id_by_filter(url, token, filter_str)
+            if retry_id:
+                print(f"   ✅ Created & Verified: {name_value}")
+                return retry_id
+            else:
+                print(f"   ❌ Created but could not find: {name_value}")
+                return None
+    else:
+        print(f"   ❌ Create Failed for {name_value}")
+        if r:
+            print(f"      Status: {r.status_code}")
+            print(f"      Response: {r.text}")
+        return None
 
 # --- 4. MAIN WORKFLOW ---
 def run_automation():
     token = get_token()
-
-    print("\n--- 🍕 STARTING AMO LA PIZZA SETUP ---")
+    print("\n--- 🍕 STARTING AMO LA PIZZA SETUP (ROBUST MODE) ---")
 
     # 1. CATEGORIES
     print("\n[1/5] Setting up Categories...")
 
     # Root Category
-    root_id = find_id_by_name(API_CAT, token, ROOT_CAT_NAME)
+    root_payload = {
+        "SystemId": generate_system_id(ROOT_CAT_NAME),
+        "Name": ROOT_CAT_NAME,
+        "Active": True
+    }
+    root_id = create_and_get_id(API_CAT, token, root_payload)
     if not root_id:
-        payload = {
-            "SystemId": generate_system_id(ROOT_CAT_NAME),
-            "Name": ROOT_CAT_NAME,
-            "Active": True
-        }
-        r = api_post(API_CAT, token, payload)
-        if r and r.status_code in [200, 201]:
-            root_id = r.json()['Id']
-            print(f"   ✅ Created Root Category: {ROOT_CAT_NAME}")
-        else:
-            print(f"   ❌ Failed Root Category: {r.text if r else 'Error'}")
-            sys.exit(1)
-    else:
-        print(f"   ✅ Root Category Exists: {ROOT_CAT_NAME}")
+        sys.exit(1)
 
     # Sub Category
-    sub_id = find_id_by_name(API_CAT, token, SUB_CAT_NAME)
-    if not sub_id:
-        payload = {
-            "SystemId": generate_system_id(SUB_CAT_NAME),
-            "Name": SUB_CAT_NAME,
-            "ParentId": root_id, # Linking to Parent
-            "Active": True
-        }
-        r = api_post(API_CAT, token, payload)
-        if r and r.status_code in [200, 201]:
-            sub_id = r.json()['Id']
-            print(f"   ✅ Created Sub Category: {SUB_CAT_NAME}")
-        else:
-            print(f"   ❌ Failed Sub Category: {r.text if r else 'Error'}")
-    else:
-        print(f"   ✅ Sub Category Exists: {SUB_CAT_NAME}")
+    sub_payload = {
+        "SystemId": generate_system_id(SUB_CAT_NAME),
+        "Name": SUB_CAT_NAME,
+        "ParentId": root_id,
+        "Active": True
+    }
+    sub_id = create_and_get_id(API_CAT, token, sub_payload)
 
     # 2. PRODUCT
     print("\n[2/5] Setting up Product...")
-    prod_id = None
-    # Check by SystemID first as it's more unique
-    search_sys = api_get(f"{API_PROD}?$filter=SystemId eq '{PROD_SYS_ID}'", token)
-    if search_sys and search_sys.status_code == 200 and search_sys.json().get('Items'):
-         prod_id = search_sys.json()['Items'][0]['Id']
-         print(f"   ✅ Product Exists: {PROD_NAME}")
-
+    prod_payload = {
+        "SystemId": PROD_SYS_ID,
+        "Name": PROD_NAME,
+        "CategoryId": sub_id,
+        "ProductType": "Accessories",
+        "BasePrice": 0,
+        "Active": True,
+        "DisplayType": "Configuration"
+    }
+    # Check by SystemId for products (more precise)
+    prod_id = find_id_by_filter(API_PROD, token, f"SystemId eq '{PROD_SYS_ID}'")
     if not prod_id:
-        payload = {
-            "SystemId": PROD_SYS_ID,
-            "Name": PROD_NAME,
-            "CategoryId": sub_id,
-            "ProductType": "Accessories", # Trying Accessories first, fallback to Simple if needed
-            "BasePrice": 0,
-            "Active": True,
-            "DisplayType": "Configuration"
-        }
-        r = api_post(API_PROD, token, payload)
+        # Create
+        r = api_call('POST', API_PROD, token, prod_payload)
         if r and r.status_code in [200, 201]:
-            prod_id = r.json()['Id']
+            # Re-fetch to be safe
+            prod_id = find_id_by_filter(API_PROD, token, f"SystemId eq '{PROD_SYS_ID}'")
             print(f"   ✅ Created Product: {PROD_NAME}")
         else:
-            print(f"   ❌ Failed to Create Product: {r.text if r else 'Error'}")
-            # Fallback for some environments that don't like 'Accessories'
-            if r and "ProductType" in r.text:
-                print("   ⚠️ Retrying as 'Simple' product type...")
-                payload['ProductType'] = "Simple"
-                r = api_post(API_PROD, token, payload)
-                if r and r.status_code in [200, 201]:
-                    prod_id = r.json()['Id']
-                    print(f"   ✅ Created Product (Simple): {PROD_NAME}")
+            print(f"   ❌ Product Create Failed: {r.text if r else 'No response'}")
 
     # 3. ATTRIBUTES
-    print("\n[3/5] Setting up Attributes & Menus...")
-
+    print("\n[3/5] Setting up Attributes...")
     for attr in ATTRIBUTES:
-        attr_name = attr['name']
-        attr_sys_id = generate_system_id(attr_name)
-        attr_id = None
+        attr_payload = {
+            "SystemId": generate_system_id(attr['name']),
+            "Name": attr['name'],
+            "AttributeType": attr['type'],
+            "Active": True
+        }
+        attr_id = create_and_get_id(API_ATTR, token, attr_payload)
 
-        # Check existence
-        search = api_get(f"{API_ATTR}?$filter=Name eq '{attr_name}'", token)
-        if search and search.status_code == 200 and search.json().get('Items'):
-            attr_id = search.json()['Items'][0]['Id']
-            print(f"   🔹 Found Attribute: {attr_name}")
-        else:
-            # Create Attribute
-            payload = {
-                "SystemId": attr_sys_id,
-                "Name": attr_name,
-                "AttributeType": attr['type'],
-                "Active": True
-            }
-            r = api_post(API_ATTR, token, payload)
-            if r and r.status_code in [200, 201]:
-                attr_id = r.json()['Id']
-                print(f"   ✅ Created Attribute: {attr_name}")
-            else:
-                print(f"   ❌ Failed Attribute {attr_name}: {r.text if r else 'Error'}")
-                continue
-
-        # Add Menu Values (For UserSelection)
-        if attr['type'] == "UserSelection" and attr['values'] and attr_id:
+        # Add Menu Values (UserSelection only)
+        if attr_id and attr['type'] == "UserSelection" and attr['values']:
             val_url = f"{API_ATTR}/{attr_id}/values"
-            # Get existing to avoid duplicates
-            existing = api_get(val_url, token).json()
-            existing_codes = [x['ValueCode'] for x in existing]
+            # Fetch existing to dedupe
+            r_exist = api_call('GET', val_url, token)
+            existing_codes = []
+            if r_exist and r_exist.status_code == 200:
+                existing_codes = [x['ValueCode'] for x in r_exist.json()]
 
             for val in attr['values']:
                 if val not in existing_codes:
-                    val_payload = {"ValueCode": val, "Display": val}
-                    # We post values individually
-                    api_post(val_url, token, val_payload)
-            print(f"      Use selections synced.")
+                    v_payload = {"ValueCode": val, "Display": val}
+                    api_call('POST', val_url, token, v_payload)
+            print(f"      Synced values for {attr['name']}")
 
-        # 4. LINK ATTRIBUTE TO PRODUCT
-        # Endpoint: /api/products/v1/products/{prod_id}/attributes
+        # 4. LINK ATTRIBUTE
         if prod_id and attr_id:
             link_url = f"{API_PROD}/{prod_id}/attributes"
-
-            # Check if linked? (Hard to check efficiently, so we try-catch the create)
-            link_payload = {
-                "AttributeId": attr_id,
-                "Rank": 10
-            }
-            # Many CPQs return 400 if already linked, which is fine
-            r_link = api_post(link_url, token, link_payload)
-            if r_link and r_link.status_code in [200, 201]:
-                 print(f"      🔗 Linked to Product")
-            elif r_link and "already assigned" in r_link.text:
-                 print(f"      🔗 Already Linked")
+            link_payload = {"AttributeId": attr_id, "Rank": 10}
+            api_call('POST', link_url, token, link_payload)
+            # We ignore errors here as "Already assigned" is common/harmless
 
     # 5. GENERATE CSV
     print("\n[5/5] Generating Pricing CSV...")
@@ -321,17 +263,11 @@ def run_automation():
         with open(filename, 'w', newline='') as f:
             writer = csv.writer(f)
             writer.writerows(PRICING_ROWS)
-        print(f"   📄 Successfully generated: {filename}")
-        print(f"   👉 Path: {os.path.abspath(filename)}")
+        print(f"   📄 Generated: {os.path.abspath(filename)}")
     except Exception as e:
         print(f"   ❌ CSV Gen Failed: {e}")
 
-    print("\n--- 🎉 AUTOMATION DONE ---")
-    print("NEXT STEPS:")
-    print("1. Go to CPQ Setup > Pricing/Calculations > Custom Tables.")
-    print(f"2. Create table 'Amo Pricing {EMP_ID}'.")
-    print(f"3. Import the file '{filename}' generated above.")
-    print("4. Manually add the Rules (Practice 8-5) in the 'Rules' tab of the product.")
+    print("\n--- 🎉 DONE. PLEASE CHECK CPQ UI ---")
 
 if __name__ == "__main__":
     run_automation()
