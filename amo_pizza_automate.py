@@ -46,15 +46,21 @@ def log_response(resp, elapsed_time=None):
 CPQ_BASE_URL = "https://tataconsultancyservices-partner1.cpq.cloud.sap"
 TOKEN_URL = f"{CPQ_BASE_URL}/basic/api/token"
 
-# Updated API Endpoints (Based on SAP CPQ Admin REST APIs from documentation)
+# Updated API Endpoints (Based on SAP CPQ REST APIs from documentation)
+# Categories and Attributes use /api/products/v1/
+PRODUCTS_API_BASE = f"{CPQ_BASE_URL}/api/products/v1"
+CAT_API = f"{PRODUCTS_API_BASE}/categories"
+ATTR_API = f"{PRODUCTS_API_BASE}/attributes"
+
+# Admin APIs for products, rules, etc.
 ADMIN_BASE = f"{CPQ_BASE_URL}/setup/api/v1/admin"
-CAT_API = f"{ADMIN_BASE}/categories"
-PROD_API = f"{ADMIN_BASE}/products"
-ATTR_API = f"{ADMIN_BASE}/attributes"
+PROD_API = f"{ADMIN_BASE}/products"  # Products use admin API!
 RULE_API = f"{ADMIN_BASE}/rules"
-MARKET_API = f"{CPQ_BASE_URL}/api/pricing/v1/markets"  # Keep as is; pricing may differ
-PRICING_TABLE_API = f"{ADMIN_BASE}/customtables"  # Custom tables for pricing
-PRICING_ENTRY_API = f"{ADMIN_BASE}/customtablerows"  # Rows for entries (assumed; adjust if needed)
+
+# Pricing APIs
+MARKET_API = f"{CPQ_BASE_URL}/api/pricing/v1/markets"
+PRICING_TABLE_API = f"{ADMIN_BASE}/customtables"
+PRICING_ENTRY_API = f"{ADMIN_BASE}/customtablerows"
 
 CPQ_USERNAME = "REDACTED_CPQ_USERNAME<=="  # Username only
 CPQ_DOMAIN = "TATACONSULTANCYSERVICESLIMITED_PARTNER1"
@@ -179,53 +185,188 @@ def get_image_url(entity_name, entity_type="product"):
     safe_text = query[:20]  # Truncate for readability
     return f"https://placehold.co/800x600/EFEFEF/A6192E/png?text={safe_text}"
 
-# --- API HELPER WITH TOKEN REFRESH & TIMEOUT ---
-def api_call(method, url, headers, **kwargs):
+# --- API HELPER WITH TOKEN REFRESH, LOGGING, RETRY & TIMEOUT ---
+MAX_RETRIES = 3
+REQUEST_TIMEOUT = 15  # Reduced from 30s to fail faster on hangs
+
+def api_call(method, url, headers, retry_count=0, **kwargs):
+    """
+    Make an API call with comprehensive logging and retry support.
+
+    Args:
+        method: HTTP method (GET, POST, PUT, DELETE)
+        url: Full URL to call
+        headers: Request headers (auth will be added)
+        retry_count: Current retry attempt (internal)
+        **kwargs: Additional args for requests (json, data, params, etc.)
+
+    Returns:
+        Response object
+    """
     refresh_token_if_needed()
     auth_header = {'Authorization': f'Bearer {current_token}'}
     full_headers = {**headers, **auth_header}
-    kwargs['timeout'] = kwargs.get('timeout', 30)  # Default 30s timeout
-    if method.upper() == 'GET':
-        resp = requests.get(url, headers=full_headers, **kwargs)
-    elif method.upper() == 'POST':
-        resp = requests.post(url, headers=full_headers, **kwargs)
-    else:
-        raise ValueError("Unsupported method")
-    return resp
+
+    # Set timeout - use shorter timeout to detect hangs faster
+    kwargs['timeout'] = kwargs.get('timeout', REQUEST_TIMEOUT)
+
+    # Extract body for logging (if present)
+    body = kwargs.get('json') or kwargs.get('data')
+
+    # Log the request
+    log_request(method, url, full_headers, body)
+    logger.info(f"   ⏱️  Timeout: {kwargs['timeout']}s | Retry: {retry_count}/{MAX_RETRIES}")
+
+    start_time = time.time()
+
+    try:
+        if method.upper() == 'GET':
+            resp = requests.get(url, headers=full_headers, **kwargs)
+        elif method.upper() == 'POST':
+            resp = requests.post(url, headers=full_headers, **kwargs)
+        elif method.upper() == 'PUT':
+            resp = requests.put(url, headers=full_headers, **kwargs)
+        elif method.upper() == 'DELETE':
+            resp = requests.delete(url, headers=full_headers, **kwargs)
+        else:
+            raise ValueError(f"Unsupported HTTP method: {method}")
+
+        elapsed = time.time() - start_time
+        log_response(resp, elapsed)
+
+        # Check for specific error codes that indicate wrong endpoint/method
+        if resp.status_code == 405:
+            logger.error(f"❌ HTTP 405 - Method '{method}' not allowed for URL: {url}")
+            logger.error("   💡 This usually means the API endpoint doesn't support this HTTP method.")
+            logger.error("   💡 Check SAP CPQ API documentation for correct endpoint structure.")
+
+        if resp.status_code == 404:
+            logger.error(f"❌ HTTP 404 - Endpoint not found: {url}")
+            logger.error("   💡 The API endpoint may not exist or requires different path structure.")
+
+        return resp
+
+    except requests.exceptions.Timeout as e:
+        elapsed = time.time() - start_time
+        logger.error(f"❌ TIMEOUT after {elapsed:.2f}s: {url}")
+        logger.error(f"   Exception: {type(e).__name__}: {e}")
+
+        if retry_count < MAX_RETRIES:
+            wait_time = 2 ** retry_count  # Exponential backoff: 1s, 2s, 4s
+            logger.warning(f"   🔄 Retrying in {wait_time}s... (attempt {retry_count + 1}/{MAX_RETRIES})")
+            time.sleep(wait_time)
+            return api_call(method, url, headers, retry_count + 1, **kwargs)
+        else:
+            logger.error(f"   ❌ Max retries ({MAX_RETRIES}) exceeded. Giving up.")
+            # Return a mock response object for graceful handling
+            return _create_error_response(504, "Gateway Timeout", str(e))
+
+    except requests.exceptions.ConnectionError as e:
+        elapsed = time.time() - start_time
+        logger.error(f"❌ CONNECTION ERROR after {elapsed:.2f}s: {url}")
+        logger.error(f"   Exception: {type(e).__name__}: {e}")
+
+        if retry_count < MAX_RETRIES:
+            wait_time = 2 ** retry_count
+            logger.warning(f"   🔄 Retrying in {wait_time}s... (attempt {retry_count + 1}/{MAX_RETRIES})")
+            time.sleep(wait_time)
+            return api_call(method, url, headers, retry_count + 1, **kwargs)
+        else:
+            logger.error(f"   ❌ Max retries ({MAX_RETRIES}) exceeded. Giving up.")
+            return _create_error_response(503, "Service Unavailable", str(e))
+
+    except Exception as e:
+        elapsed = time.time() - start_time
+        logger.error(f"❌ UNEXPECTED ERROR after {elapsed:.2f}s: {url}")
+        logger.error(f"   Exception: {type(e).__name__}: {e}")
+        return _create_error_response(500, "Internal Error", str(e))
+
+
+class MockResponse:
+    """Mock response object for error cases"""
+    def __init__(self, status_code, reason, text):
+        self.status_code = status_code
+        self.reason = reason
+        self.text = text
+        self.headers = {'Content-Type': 'application/json'}
+
+    def json(self):
+        return {"error": self.reason, "message": self.text}
+
+
+def _create_error_response(status_code, reason, message):
+    """Create a mock response for connection failures"""
+    return MockResponse(status_code, reason, message)
 
 # --- 3. CREATE OR FIND ENTITY (Generic Helper) ---
 def create_or_find(headers, api_url, payload, find_key="Name", find_value=None):
     if find_value is None:
         find_value = payload.get(find_key, "")
 
-    # First, try to find existing (local filter; add $filter if needed for large lists)
-    print(f"   🔍 Searching for: {find_value}")
+    logger.info(f"🔍 SEARCH: Looking for '{find_value}' in {api_url}")
+
+    # First, try to find existing
     search_resp = api_call('GET', api_url, headers)
+
     if search_resp.status_code == 200:
         existing = search_resp.json()
-        existing_list = existing if isinstance(existing, list) else existing.get('Items', []) or existing.get('Value', [])
+
+        # Log the structure of the response to understand API format
+        logger.debug(f"   Response type: {type(existing).__name__}")
+        if isinstance(existing, dict):
+            logger.debug(f"   Response keys: {list(existing.keys())}")
+
+        # Handle different response structures - SAP CPQ uses 'pagedRecords' for paginated results
+        if isinstance(existing, list):
+            existing_list = existing
+        else:
+            existing_list = (
+                existing.get('pagedRecords', []) or  # SAP CPQ paginated format
+                existing.get('Items', []) or
+                existing.get('Value', []) or
+                existing.get('value', [])
+            )
+
+        logger.info(f"   Found {len(existing_list)} items in response")
+
         for item in existing_list:
-            if str(item.get(find_key, "")).strip() == str(find_value).strip():
-                sys_id = item.get('SystemId')
-                print(f"   🎯 Found existing: {find_value} (SystemId: {sys_id})")
-                return sys_id  # Return SystemId for associations
+            # Check both PascalCase and camelCase field names since API may use either
+            item_name = str(item.get(find_key, "") or item.get(find_key.lower(), "")).strip()
+            logger.debug(f"   Checking: '{item_name}' vs '{find_value}'")
+            if item_name.lower() == str(find_value).strip().lower():  # Case-insensitive compare
+                sys_id = item.get('SystemId') or item.get('systemId') or item.get('Id') or item.get('id')
+                logger.info(f"   🎯 Found existing: {find_value} (ID: {sys_id})")
+                return sys_id
+
+        logger.info(f"   ℹ️  Entity '{find_value}' not found in existing items")
     else:
-        print(f"   ⚠️  Search failed ({search_resp.status_code}): {search_resp.text}")
+        logger.warning(f"   ⚠️  Search failed ({search_resp.status_code}): {search_resp.text[:200]}")
 
     # Create if not found
-    print(f"   ➕ Creating: {find_value}")
+    logger.info(f"➕ CREATE: Attempting to create '{find_value}'")
+    logger.info(f"   API URL: {api_url}")
+
     # Add SystemId if not present
     if 'SystemId' not in payload:
         payload['SystemId'] = generate_system_id(find_value)
+
+    logger.debug(f"   Payload: {json.dumps(payload, indent=2)[:500]}")
+
     create_resp = api_call('POST', api_url, headers, json=payload)
+
     if create_resp.status_code in [200, 201]:
         new_data = create_resp.json()
-        new_id = new_data.get('Id') or new_data.get('SystemId')
+        new_id = new_data.get('Id') or new_data.get('SystemId') or new_data.get('id')
         sys_id = payload['SystemId']
-        print(f"   ✅ Created SystemId: {sys_id} (ID: {new_id})")
+        logger.info(f"   ✅ Created successfully: {sys_id} (ID: {new_id})")
         return sys_id
+    elif create_resp.status_code == 405:
+        logger.error(f"   ❌ HTTP 405 - POST not supported at: {api_url}")
+        logger.error(f"   💡 SAP CPQ Admin API may require different endpoint structure.")
+        logger.error(f"   💡 Try checking if POSTing to a sub-resource is needed (e.g., /products/create)")
+        return None
     else:
-        print(f"   ❌ Create Failed ({create_resp.status_code}): {create_resp.text}")
+        logger.error(f"   ❌ Create Failed ({create_resp.status_code}): {create_resp.text[:300]}")
         return None
 
 # --- 4. MAIN AUTOMATION STEPS ---
@@ -234,67 +375,95 @@ def run_automation():
     current_token = get_token()
     headers = {'Content-Type': 'application/json'}
 
-    created_ids = {}  # Track SystemIds for associations
+    created_ids = {}  # Track IDs for associations
 
     # Step 1: Create Categories and Product (Practice 8-1)
-    print("\n🍕 Step 1: Defining Configurable Product Structure")
+    logger.info("\n🍕 Step 1: Defining Configurable Product Structure")
 
     # Main Category: "Amo la Pizza"
+    # Using lowercase field names as per SAP CPQ API documentation
+    # Note: mainImage has 50 char max - skip for now, set in UI
     main_cat_payload = {
-        "Name": "Amo la Pizza",
-        "ImageUrl": get_image_url("Amo la Pizza", "pizza category")
+        "name": "Amo la Pizza",
+        "systemId": generate_system_id("Amo la Pizza"),
+        "active": True,
+        "visibleToEveryone": True,
+        "parentCategory": 0  # 0 = root category (not null!)
     }
-    main_cat_sys_id = create_or_find(headers, CAT_API, main_cat_payload)
-    if main_cat_sys_id:
-        created_ids['main_cat'] = main_cat_sys_id
+    get_image_url("Amo la Pizza", "pizza category")  # Just log placeholder
+    main_cat_id = create_or_find(headers, CAT_API, main_cat_payload, find_key="name")
+    if main_cat_id:
+        created_ids['main_cat'] = main_cat_id
+        logger.info(f"   ✅ Main Category ID: {main_cat_id}")
 
     # Subcategory: "Pizza Menu_2800815" (child of main_cat)
+    # parentCategory must be an int (the category ID, not systemId)
     sub_cat_payload = {
-        "Name": f"Pizza Menu_{EMP_ID}",
-        "ParentSystemId": main_cat_sys_id,
-        "ImageUrl": get_image_url(f"Pizza Menu_{EMP_ID}")
+        "name": f"Pizza Menu_{EMP_ID}",
+        "systemId": generate_system_id(f"Pizza Menu_{EMP_ID}"),
+        "parentCategory": main_cat_id if main_cat_id else 0,  # Parent category ID (int)
+        "active": True,
+        "visibleToEveryone": True
     }
-    sub_cat_sys_id = create_or_find(headers, CAT_API, sub_cat_payload)
-    if sub_cat_sys_id:
-        created_ids['sub_cat'] = sub_cat_sys_id
+    get_image_url(f"Pizza Menu_{EMP_ID}")  # Just log placeholder
+    sub_cat_id = create_or_find(headers, CAT_API, sub_cat_payload, find_key="name")
+    if sub_cat_id:
+        created_ids['sub_cat'] = sub_cat_id
+        logger.info(f"   ✅ Sub Category ID: {sub_cat_id}")
 
     # Product: "Pizza Order_2800815", Type: "Accessories", Base Price: 0, Category: sub_cat
+    # Products use /setup/api/v1/admin/products - field names may differ
+    get_image_url(f"Pizza Order_{EMP_ID}", "product")  # Just log placeholder
     prod_payload = {
-        "Name": f"Pizza Order_{EMP_ID}",
-        "ProductType": "Accessories",  # As per lab; may map to 'Simple' or confirm in UI
-        "BasePrice": 0,
-        "CategorySystemId": sub_cat_sys_id,
-        "ImageUrl": get_image_url(f"Pizza Order_{EMP_ID}", "product")
+        "name": f"Pizza Order_{EMP_ID}",
+        "systemId": generate_system_id(f"Pizza Order_{EMP_ID}"),
+        "productType": "Accessories",  # As per lab
+        "active": True
+        # Note: Category association may need to be done separately via UI or different API
     }
-    prod_sys_id = create_or_find(headers, PROD_API, prod_payload, "Name", f"Pizza Order_{EMP_ID}")
-    if prod_sys_id:
-        created_ids['product'] = prod_sys_id
-        print(f"   📦 Product SystemId: {prod_sys_id}")
+    prod_id = create_or_find(headers, PROD_API, prod_payload, find_key="name", find_value=f"Pizza Order_{EMP_ID}")
+    if prod_id:
+        created_ids['product'] = prod_id
+        logger.info(f"   📦 Product ID: {prod_id}")
 
-    # Step 2: Add Attributes (Practice 8-2 & 8-3) - Associate via ProductSystemId
-    print("\n⚙️ Step 2: Adding Configurable & Container Attributes")
+    # Step 2: Add Attributes (Practice 8-2 & 8-3)
+    # Attributes API uses lowercase field names based on API response
+    logger.info("\n⚙️ Step 2: Adding Configurable & Container Attributes")
     attr_sys_ids = {}
+
+    # Map our attr_type values to SAP CPQ type values
+    TYPE_MAPPING = {
+        "SingleSelectMenu": "Single Select Menu",
+        "MultiSelectMenu": "Multi Select Menu",
+        "TextField": "Text Field",
+        None: "Check Box"  # Default for Boolean
+    }
+
     for attr in ATTRIBUTES:
-        attr_payload = {
-            "Name": attr["name"],
-            "DataType": attr["data_type"],
-            "AttributeType": attr.get("attr_type"),
-            "MenuOptions": attr.get("menu_options"),
-            "DefaultValue": attr.get("default"),
-            "ImageMenu": attr.get("image_menu", False),
-            "ProductSystemId": prod_sys_id,  # Key association
-            # Array/Container fields (may need UI tweak for full config)
-            "ArrayType": attr.get("array_type"),
-            "ArrayControl": attr.get("array_control", False)
-        }
-        # For container, add included (assumed field; adjust if needed)
+        # Skip container type for now - requires special handling
         if attr["data_type"] == "Container":
-            attr_payload["IncludedAttributes"] = attr["included_attrs"]
-            attr_payload["ArrayControlAttribute"] = attr["array_control_attr"]
-        attr_sys_id = create_or_find(headers, ATTR_API, attr_payload)
+            logger.warning(f"   ⚠️  Skipping Container attribute '{attr['name']}' - requires UI setup")
+            continue
+
+        # Build payload with lowercase field names as returned by API
+        attr_payload = {
+            "name": attr["name"],
+            "systemId": generate_system_id(attr["name"]),
+            "type": TYPE_MAPPING.get(attr.get("attr_type"), attr.get("attr_type")),  # Required field!
+        }
+
+        # Add optional fields if present
+        if attr.get("menu_options"):
+            # For menus, we need to create values separately or include them
+            attr_payload["values"] = [
+                {"value": opt.strip(), "valueCode": opt.strip().replace(" ", "_")}
+                for opt in attr["menu_options"].split(",")
+            ]
+
+        attr_sys_id = create_or_find(headers, ATTR_API, attr_payload, find_key="name")
         if attr_sys_id:
             attr_sys_ids[attr["name"]] = attr_sys_id
-            print(f"   ✅ Attribute: {attr['name']} (SystemId: {attr_sys_id})")
+            logger.info(f"   ✅ Attribute: {attr['name']} (ID: {attr_sys_id})")
 
     # Step 3: Add Rules (Practice 8-5)
     print("\n📋 Step 3: Adding Configuration Rules")
@@ -305,7 +474,7 @@ def run_automation():
             "Condition": rule["condition"],
             "Action": rule["action"],
             "Message": rule["message"],
-            "ProductSystemId": prod_sys_id  # Association
+            "ProductSystemId": prod_id  # Association
         }
         rule_sys_id = create_or_find(headers, RULE_API, rule_payload)
         if rule_sys_id:
