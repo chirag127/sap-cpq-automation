@@ -1,24 +1,26 @@
-import requests
-import json
+import os
 import time
-import sys
+
+import requests
 
 # --- CONFIGURATION ---
-BASE_URL = "https://tataconsultancyservices-partner1.cpq.cloud.sap"
+BASE_URL = os.environ.get(
+    "CPQ_BASE_URL", "https://tataconsultancyservices-partner1.cpq.cloud.sap"
+)
 API_ENDPOINT = f"{BASE_URL}/api/products/v1/categories"
 
-# PASTE YOUR ACCESS TOKEN HERE
-ACCESS_TOKEN = "REDACTED_JWT_TOKEN<=="
+ACCESS_TOKEN = os.environ.get("CPQ_ACCESS_TOKEN", "")
 
 # Filtering String (Case Insensitive)
 TARGET_NAME = "chirag"
 
+
 def delete_categories():
-    print(f"--- SAP CPQ DELETER ---")
+    print("--- SAP CPQ DELETER ---")
 
     headers = {
-        'Authorization': f'Bearer {ACCESS_TOKEN}',
-        'Content-Type': 'application/json'
+        "Authorization": f"Bearer {ACCESS_TOKEN}",
+        "Content-Type": "application/json",
     }
 
     # 1. FETCH ALL CATEGORIES
@@ -33,7 +35,7 @@ def delete_categories():
         data = response.json()
 
         # Use 'pagedRecords' as identified in your previous steps
-        all_cats = data.get('pagedRecords', [])
+        all_cats = data.get("pagedRecords", [])
         print(f"   Total Categories found: {len(all_cats)}")
 
     except Exception as e:
@@ -45,8 +47,8 @@ def delete_categories():
     print(f"\n🔍 Filtering for '{TARGET_NAME}'...")
 
     for cat in all_cats:
-        name = str(cat.get('name', ''))
-        sys_id = str(cat.get('systemId', ''))
+        name = str(cat.get("name", ""))
+        sys_id = str(cat.get("systemId", ""))
 
         if TARGET_NAME.lower() in name.lower() or TARGET_NAME.lower() in sys_id.lower():
             targets.append(cat)
@@ -63,10 +65,10 @@ def delete_categories():
 
     # Reverse order helps delete children before parents
     for i, cat in enumerate(reversed(targets)):
-        cat_id = cat.get('id')
-        name = cat.get('name')
+        cat_id = cat.get("id")
+        name = cat.get("name")
 
-        print(f"[{i+1}/{len(targets)}] Deleting '{name}' (ID: {cat_id})...", end=" ")
+        print(f"[{i + 1}/{len(targets)}] Deleting '{name}' (ID: {cat_id})...", end=" ")
 
         try:
             # FIX: Use SLASH separator, NOT parentheses
@@ -80,8 +82,10 @@ def delete_categories():
                 success += 1
             else:
                 print(f"❌ Failed ({resp.status_code})")
-                try: print(f"      {resp.json()['message']}")
-                except: pass
+                try:
+                    print(f"      {resp.json()['message']}")
+                except:
+                    pass
                 fail += 1
         except Exception as e:
             print(f"❌ Error: {e}")
@@ -89,9 +93,10 @@ def delete_categories():
 
         time.sleep(0.5)
 
-    print(f"\n--- DONE ---")
+    print("\n--- DONE ---")
     print(f"Deleted: {success}")
     print(f"Failed: {fail}")
+
 
 if __name__ == "__main__":
     delete_categories()

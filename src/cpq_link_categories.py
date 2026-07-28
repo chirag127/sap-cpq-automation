@@ -1,53 +1,60 @@
-import requests
 import json
-import sys
+import os
 import re
-import time
+
+import requests
 
 # --- CONFIGURATION ---
-BASE_URL = "https://tataconsultancyservices-partner1.cpq.cloud.sap"
+BASE_URL = os.environ.get(
+    "CPQ_BASE_URL", "https://tataconsultancyservices-partner1.cpq.cloud.sap"
+)
 API_ENDPOINT = f"{BASE_URL}/api/products/v1/categories"
 
-# PASTE YOUR *NEW* ACCESS TOKEN HERE
-ACCESS_TOKEN = "REDACTED_JWT_TOKEN<=="
+ACCESS_TOKEN = os.environ.get("CPQ_ACCESS_TOKEN", "")
 
-INPUT_FILE = 'agco_complete_data.json'
-USER_PREFIX = "CS"
+INPUT_FILE = os.path.join(
+    os.path.dirname(__file__), "..", "data", "agco_complete_data.json"
+)
+USER_PREFIX = os.environ.get("USER_PREFIX", "CS")
+
 
 # --- HELPERS ---
 def get_headers():
     return {
-        'Authorization': f'Bearer {ACCESS_TOKEN}',
-        'Content-Type': 'application/json'
+        "Authorization": f"Bearer {ACCESS_TOKEN}",
+        "Content-Type": "application/json",
     }
 
+
 def make_sys_id(text):
-    if not text: return f"{USER_PREFIX}_UNKNOWN"
-    clean = re.sub(r'[^a-zA-Z0-9]', '_', str(text).strip())
-    clean = re.sub(r'_+', '_', clean).strip('_')
+    if not text:
+        return f"{USER_PREFIX}_UNKNOWN"
+    clean = re.sub(r"[^a-zA-Z0-9]", "_", str(text).strip())
+    clean = re.sub(r"_+", "_", clean).strip("_")
     return f"{USER_PREFIX}_{clean}".upper()
+
 
 # --- 1. FETCH WITH PAGINATION ---
 def fetch_all_categories(headers):
     print("📥 Fetching ALL Category IDs (Pagination Enabled)...")
     all_records = []
     skip = 0
-    top = 1000 # Max allowed
+    top = 1000  # Max allowed
 
     while True:
-        print(f"   Requesting records {skip} to {skip+top}...", end=" ")
+        print(f"   Requesting records {skip} to {skip + top}...", end=" ")
         try:
             params = {"$skip": skip, "$top": top}
             resp = requests.get(API_ENDPOINT, headers=headers, params=params)
 
             if resp.status_code == 200:
                 data = resp.json()
-                page = data.get('pagedRecords', [])
+                page = data.get("pagedRecords", [])
                 all_records.extend(page)
                 print(f"Got {len(page)}")
 
                 if len(page) < top:
-                    break # Reached end
+                    break  # Reached end
                 skip += top
             else:
                 print(f"❌ Failed: {resp.status_code}")
@@ -59,21 +66,24 @@ def fetch_all_categories(headers):
     # Build Map
     id_map = {}
     for r in all_records:
-        sys_id = r.get('systemId')
-        num_id = r.get('id')
+        sys_id = r.get("systemId")
+        num_id = r.get("id")
         if sys_id and num_id:
             id_map[sys_id] = num_id
 
     print(f"✅ Total Categories Mapped: {len(id_map)}")
     return id_map
 
+
 # --- 2. MAIN LOGIC ---
 def link_categories():
     # 1. READ JSON
     try:
-        with open(INPUT_FILE, 'r', encoding='utf-8') as f:
+        with open(INPUT_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
-    except: print("❌ JSON not found"); return
+    except:
+        print("❌ JSON not found")
+        return
 
     headers = get_headers()
 
@@ -87,8 +97,8 @@ def link_categories():
     success_count = 0
 
     for item in data:
-        title = item.get('title')
-        parent_name = item.get('parent')
+        title = item.get("title")
+        parent_name = item.get("parent")
 
         child_sys_id = make_sys_id(title)
 
@@ -122,16 +132,22 @@ def link_categories():
             current_data = get_resp.json()
 
             # Check if update is actually needed
-            if current_data.get('parentCategory') == parent_num_id:
+            if current_data.get("parentCategory") == parent_num_id:
                 # Already linked, skip to save time
                 continue
 
             # B. MODIFY Payload
-            current_data['parentCategory'] = parent_num_id
+            current_data["parentCategory"] = parent_num_id
 
             # Remove Read-Only fields that cause 400 errors
             # (CreatedBy, ModifiedBy, Dates often cause issues if sent back)
-            for key in ['createdDate', 'modifiedDate', 'createdBy', 'modifiedBy', 'permissions']:
+            for key in [
+                "createdDate",
+                "modifiedDate",
+                "createdBy",
+                "modifiedBy",
+                "permissions",
+            ]:
                 current_data.pop(key, None)
 
             # C. PUT Update
@@ -148,6 +164,7 @@ def link_categories():
             print(f"❌ Error: {e}")
 
     print(f"\n--- DONE: Updated {success_count} Categories ---")
+
 
 if __name__ == "__main__":
     link_categories()

@@ -1,40 +1,45 @@
-import requests
-import json
-import time
-from googlesearch import search
+import os
 import sys
+import time
+
+import requests
+from googlesearch import search
 
 # --- CONFIGURATION ---
 # --- CONFIGURATION ---
-CPQ_BASE_URL = "https://tataconsultancyservices-partner1.cpq.cloud.sap"
+CPQ_BASE_URL = os.environ.get(
+    "CPQ_BASE_URL", "https://tataconsultancyservices-partner1.cpq.cloud.sap"
+)
 TOKEN_URL = f"{CPQ_BASE_URL}/basic/api/token"
 CAT_API = f"{CPQ_BASE_URL}/api/products/v1/categories"
 
 # CPQ Credentials (for generating fresh token)
-CPQ_USERNAME = "REDACTED_CPQ_USERNAME<=="  # Username only
-CPQ_DOMAIN = "TATACONSULTANCYSERVICESLIMITED_PARTNER1"
-CPQ_PASSWORD = "REDACTED_CPQ_PASSWORD<=="  # Paste the long string from Setup > Users
+CPQ_USERNAME = os.environ.get("CPQ_USERNAME", "")
+CPQ_DOMAIN = os.environ.get("CPQ_DOMAIN", "TATACONSULTANCYSERVICESLIMITED_PARTNER1")
+CPQ_PASSWORD = os.environ.get("CPQ_PASSWORD", "")
+
 
 # --- 1. GET TOKEN ---
 def get_token():
     print("🔑 Authenticating...")
     payload = {
-        'grant_type': 'password',
-        'username': CPQ_USERNAME,
-        'password': CPQ_PASSWORD,
-        'domain': CPQ_DOMAIN
+        "grant_type": "password",
+        "username": CPQ_USERNAME,
+        "password": CPQ_PASSWORD,
+        "domain": CPQ_DOMAIN,
     }
-    headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+    headers = {"Content-Type": "application/x-www-form-urlencoded"}
 
     try:
         resp = requests.post(TOKEN_URL, data=payload, headers=headers)
         if resp.status_code != 200:
             print(f"❌ Auth Failed ({resp.status_code}): {resp.text}")
             sys.exit(1)
-        return resp.json()['access_token']
+        return resp.json()["access_token"]
     except Exception as e:
         print(f"❌ Connection Error: {e}")
         sys.exit(1)
+
 
 # --- 2. FIND IMAGE ---
 def get_image_url(product_name):
@@ -47,7 +52,7 @@ def get_image_url(product_name):
         # Search Google for a valid image URL
         for result in search(search_term, num_results=5, advanced=True):
             url = result.url.lower()
-            if url.endswith(('.jpg', '.png', '.jpeg', '.webp')):
+            if url.endswith((".jpg", ".png", ".jpeg", ".webp")):
                 print("✅ Found")
                 return result.url
     except:
@@ -58,13 +63,11 @@ def get_image_url(product_name):
     safe_text = query.replace(" ", "+")
     return f"https://placehold.co/800x600/EFEFEF/A6192E/png?text={safe_text}"
 
+
 # --- 3. MAIN UPDATE LOOP ---
 def run_update():
     token = get_token()
-    headers = {
-        'Authorization': f'Bearer {token}',
-        'Content-Type': 'application/json'
-    }
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
     print("📥 Fetching ALL categories (Local Filtering)...")
     try:
@@ -76,7 +79,11 @@ def run_update():
 
         # Handle different response formats
         data = resp.json()
-        all_cats = data if isinstance(data, list) else data.get('Items', []) or data.get('Value', [])
+        all_cats = (
+            data
+            if isinstance(data, list)
+            else data.get("Items", []) or data.get("Value", [])
+        )
 
         print(f"   Total Categories in System: {len(all_cats)}")
 
@@ -89,25 +96,30 @@ def run_update():
         return
 
     # Filter locally for 'CS_'
-    my_cats = [c for c in all_cats if str(c.get('SystemId', '')).startswith('CS_') or str(c.get('CategoryCode', '')).startswith('CS_')]
+    my_cats = [
+        c
+        for c in all_cats
+        if str(c.get("SystemId", "")).startswith("CS_")
+        or str(c.get("CategoryCode", "")).startswith("CS_")
+    ]
 
     print(f"   🎯 Found {len(my_cats)} categories to update.\n")
 
     success = 0
     for cat in my_cats:
-        cat_id = cat.get('Id')
-        sys_id = cat.get('SystemId') or cat.get('CategoryCode')
-        name = cat.get('Name')
+        cat_id = cat.get("Id")
+        sys_id = cat.get("SystemId") or cat.get("CategoryCode")
+        name = cat.get("Name")
 
         # Get new image
         new_image = get_image_url(name)
 
         # SAFETY: We start with the existing object so we don't erase data
         # We only update the ImageUrl field
-        cat['ImageUrl'] = new_image
+        cat["ImageUrl"] = new_image
 
         # Remove read-only fields that might cause errors on update
-        for field in ['DateCreated', 'DateModified', 'CreatedBy', 'ModifiedBy']:
+        for field in ["DateCreated", "DateModified", "CreatedBy", "ModifiedBy"]:
             cat.pop(field, None)
 
         try:
@@ -119,13 +131,16 @@ def run_update():
                 print(f"      💾 Saved: {sys_id}")
                 success += 1
             else:
-                print(f"      ❌ Failed ({update_resp.status_code}): {update_resp.text}")
+                print(
+                    f"      ❌ Failed ({update_resp.status_code}): {update_resp.text}"
+                )
         except Exception as e:
             print(f"      ❌ Network Error: {e}")
 
-        time.sleep(0.5) # Be polite
+        time.sleep(0.5)  # Be polite
 
     print(f"\n✅ Job Complete. Updated {success} categories.")
+
 
 if __name__ == "__main__":
     run_update()

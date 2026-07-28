@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SAP CPQ Automation</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0; padding: 2rem; max-width: 900px; margin: 0 auto; }
+  h1 { color: #6366f1; }
+  .subtitle { color: #94a3b8; margin-bottom: 2rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; }
+  .card { background: #1e293b; border-radius: 12px; padding: 1.5rem; border: 1px solid #334155; }
+  .card h2 { color: #6366f1; font-size: 0.9rem; margin-bottom: 0.5rem; }
+  .card p { color: #94a3b8; font-size: 0.85rem; }
+  code { background: #0f172a; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; color: #a5b4fc; }
+  a { color: #6366f1; }
+</style>
+</head>
+<body>
+<h1>SAP CPQ Automation</h1>
+<p class="subtitle">Python scripts for bulk SAP CPQ category and product management via REST API.</p>
+<div class="grid">
+  <div class="card">
+    <h2>convert_json_to_excel.py</h2>
+    <p>Converts scraped product JSON data into CPQ-importable Excel format with proper system IDs and category mappings.</p>
+  </div>
+  <div class="card">
+    <h2>cpq_category_uploader.py</h2>
+    <p>Bulk uploads categories, attributes, and products to SAP CPQ via the REST API with token auth and retry logic.</p>
+  </div>
+  <div class="card">
+    <h2>cpq_link_categories.py</h2>
+    <p>Two-pass category linker: fetches all category IDs first, then updates parent references in bulk.</p>
+  </div>
+</div>
+<p style="margin-top:2rem;color:#475569;font-size:0.875rem;"><a href="https://github.com/chirag127/sap-cpq-automation">View on GitHub</a></p>
+</body>
+</html>

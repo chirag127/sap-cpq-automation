@@ -1,40 +1,47 @@
-import requests
 import json
-import time
+import os
 import re
-import sys
+import time
+
+import requests
 
 # --- CONFIGURATION ---
-BASE_URL = "https://tataconsultancyservices-partner1.cpq.cloud.sap"
+BASE_URL = os.environ.get(
+    "CPQ_BASE_URL", "https://tataconsultancyservices-partner1.cpq.cloud.sap"
+)
 API_ENDPOINT = f"{BASE_URL}/api/product/v1/categories"
 
-# PASTE YOUR ACCESS TOKEN HERE
-ACCESS_TOKEN = "REDACTED_JWT_TOKEN<=="
+ACCESS_TOKEN = os.environ.get("CPQ_ACCESS_TOKEN", "")
 
-INPUT_FILE = 'agco_complete_data.json'
+INPUT_FILE = "agco_complete_data.json"
 
 # NAMING CONVENTION
 USER_PREFIX = "CS"
 USER_NAME_SUFFIX = "Chirag Singhal"
 
+
 # --- HELPER FUNCTIONS ---
 def get_headers():
     return {
-        'Authorization': f'Bearer {ACCESS_TOKEN}',
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
+        "Authorization": f"Bearer {ACCESS_TOKEN}",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
     }
+
 
 def make_sys_id(text):
     """Generates unique SystemId: 'Tractors' -> 'CS_TRACTORS'"""
-    if not text: return f"{USER_PREFIX}_UNKNOWN"
-    clean = re.sub(r'[^a-zA-Z0-9]', '_', str(text).strip())
-    clean = re.sub(r'_+', '_', clean).strip('_')
+    if not text:
+        return f"{USER_PREFIX}_UNKNOWN"
+    clean = re.sub(r"[^a-zA-Z0-9]", "_", str(text).strip())
+    clean = re.sub(r"_+", "_", clean).strip("_")
     return f"{USER_PREFIX}_{clean}".upper()
+
 
 def make_display_name(text):
     """Generates Name: 'Tractors - Chirag Singhal'"""
     return f"{str(text).strip()} - {USER_NAME_SUFFIX}"
+
 
 # --- MAIN LOGIC ---
 def create_categories():
@@ -42,7 +49,7 @@ def create_categories():
 
     # 1. LOAD DATA
     try:
-        with open(INPUT_FILE, 'r', encoding='utf-8') as f:
+        with open(INPUT_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
     except FileNotFoundError:
         print(f"❌ Error: {INPUT_FILE} not found.")
@@ -52,7 +59,7 @@ def create_categories():
     # This ensures we create parents before children
     levels = {}
     for item in data:
-        depth = item.get('depth', 0)
+        depth = item.get("depth", 0)
         if depth not in levels:
             levels[depth] = []
         levels[depth].append(item)
@@ -67,7 +74,7 @@ def create_categories():
         "SystemId": root_sys_id,
         "Name": root_name,
         "Active": True,
-        "DisplayType": "Category"
+        "DisplayType": "Category",
     }
 
     # Check/Create Root
@@ -82,7 +89,7 @@ def create_categories():
     # 4. ITERATE LEVELS
     # Dictionary to map 'Title' -> 'SystemId' for parent lookups
     # Initialize with our manual Root
-    id_map = { "ROOT": root_sys_id, "Home": root_sys_id }
+    id_map = {"ROOT": root_sys_id, "Home": root_sys_id}
 
     # Get sorted depth keys (0, 1, 2, 3...)
     sorted_depths = sorted(levels.keys())
@@ -92,9 +99,9 @@ def create_categories():
         items = levels[depth]
 
         for item in items:
-            title = item.get('title')
-            parent_title = item.get('parent')
-            desc = item.get('description', '')
+            title = item.get("title")
+            parent_title = item.get("parent")
+            desc = item.get("description", "")
 
             # Generate IDs
             sys_id = make_sys_id(title)
@@ -105,7 +112,9 @@ def create_categories():
             parent_sys_id = id_map.get(parent_title)
 
             if not parent_sys_id:
-                print(f"⚠️ Warning: Parent '{parent_title}' not found for '{title}'. Skipping.")
+                print(
+                    f"⚠️ Warning: Parent '{parent_title}' not found for '{title}'. Skipping."
+                )
                 continue
 
             # Store mapping for future children
@@ -114,11 +123,11 @@ def create_categories():
             # Prepare Payload
             payload = {
                 "systemId": sys_id,
-                "parentCategory": parent_sys_id, # Crucial Link
+                "parentCategory": parent_sys_id,  # Crucial Link
                 "name": name,
                 "description": desc[:255] if desc else "",
                 "active": True,
-                "displayType": "Category"
+                "displayType": "Category",
             }
 
             print(f"Creating: {sys_id} (Parent: {parent_sys_id})...", end=" ")
@@ -133,8 +142,10 @@ def create_categories():
                     print("✅ Exists (Skipping)")
                 else:
                     # Try to extract error message
-                    try: err_msg = response.json()['message']
-                    except: err_msg = response.text[:50]
+                    try:
+                        err_msg = response.json()["message"]
+                    except:
+                        err_msg = response.text[:50]
                     print(f"❌ Failed: {err_msg}")
 
             except Exception as e:
@@ -144,6 +155,7 @@ def create_categories():
             time.sleep(0.5)
 
     print("\n--- JOB COMPLETE ---")
+
 
 if __name__ == "__main__":
     create_categories()

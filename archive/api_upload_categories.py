@@ -1,43 +1,47 @@
+import os
+
 import pandas as pd
 import requests
-import json
-import sys
 
 # --- CONFIGURATION ---
-BASE_URL = "https://tataconsultancyservices-partner1.cpq.cloud.sap"
+BASE_URL = os.environ.get(
+    "CPQ_BASE_URL", "https://tataconsultancyservices-partner1.cpq.cloud.sap"
+)
 
-# PASTE YOUR LONG ACCESS TOKEN HERE
-ACCESS_TOKEN = "REDACTED_JWT_TOKEN<=="
+ACCESS_TOKEN = os.environ.get("CPQ_ACCESS_TOKEN", "")
 
-INPUT_FILE = '1_Upload_Categories_Chirag.xlsx'
+INPUT_FILE = "1_Upload_Categories_Chirag.xlsx"
 
 # --- API SETUP ---
 API_ENDPOINT = f"{BASE_URL}/api/products/v1/categories"
 
+
 def upload_categories():
-    print(f"--- SAP CPQ UPLOADER (TOKEN AUTH) ---")
+    print("--- SAP CPQ UPLOADER (TOKEN AUTH) ---")
     print(f"Target: {API_ENDPOINT}")
 
     # 1. SETUP HEADERS WITH TOKEN
     # This is the key change: We use 'Bearer' auth
     headers = {
-        'Authorization': f'Bearer {ACCESS_TOKEN}',
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
+        "Authorization": f"Bearer {ACCESS_TOKEN}",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
     }
 
     session = requests.Session()
     session.headers.update(headers)
 
     # 2. TEST CONNECTION
-    print(f"Testing Token Validity...")
+    print("Testing Token Validity...")
     try:
         test_resp = session.get(API_ENDPOINT, params={"$top": 1})
 
         if test_resp.status_code == 401:
             print("❌ Error 401: Unauthorized.")
             print("Your Access Token has expired or is invalid.")
-            print("Please generate a new token from /basic/api/token and update the script.")
+            print(
+                "Please generate a new token from /basic/api/token and update the script."
+            )
             return
         elif test_resp.status_code == 200:
             print("✅ Token is Valid! Starting Upload...")
@@ -56,19 +60,19 @@ def upload_categories():
         return
 
     # 4. SORT DATA
-    df['Parent Category Code'] = df['Parent Category Code'].fillna('')
-    df['SortKey'] = df['Parent Category Code'].apply(lambda x: 0 if x == '' else 1)
-    df = df.sort_values('SortKey').drop('SortKey', axis=1)
+    df["Parent Category Code"] = df["Parent Category Code"].fillna("")
+    df["SortKey"] = df["Parent Category Code"].apply(lambda x: 0 if x == "" else 1)
+    df = df.sort_values("SortKey").drop("SortKey", axis=1)
 
     # 5. UPLOAD LOOP
     success = 0
     fail = 0
 
     for index, row in df.iterrows():
-        sys_id = str(row['Category Code']).strip()
-        name = str(row['Name']).strip()
-        desc = str(row['Description']).strip() if pd.notna(row['Description']) else ""
-        parent_id = str(row['Parent Category Code']).strip()
+        sys_id = str(row["Category Code"]).strip()
+        name = str(row["Name"]).strip()
+        desc = str(row["Description"]).strip() if pd.notna(row["Description"]) else ""
+        parent_id = str(row["Parent Category Code"]).strip()
 
         payload = {
             "SystemId": sys_id,
@@ -76,13 +80,13 @@ def upload_categories():
             "Description": desc,
             "Active": True,
             "DisplayType": "Category",
-            "VisibleToEveryone": True
+            "VisibleToEveryone": True,
         }
 
         if parent_id:
             payload["ParentCategorySystemId"] = parent_id
 
-        print(f"[{index+1}] Creating {sys_id}...", end=" ")
+        print(f"[{index + 1}] Creating {sys_id}...", end=" ")
 
         try:
             # We don't need 'auth=' here because headers handle it
@@ -96,7 +100,7 @@ def upload_categories():
                 success += 1
             else:
                 try:
-                    err = response.json().get('Message', response.text)
+                    err = response.json().get("Message", response.text)
                 except:
                     err = response.text[:50]
                 print(f"❌ {err}")
@@ -108,6 +112,7 @@ def upload_categories():
     print("\n--- SUMMARY ---")
     print(f"Success: {success}")
     print(f"Failed: {fail}")
+
 
 if __name__ == "__main__":
     upload_categories()
