@@ -2,13 +2,11 @@
 
 [![GitHub stars](https://img.shields.io/github/stars/chirag127/sap-cpq-automation?style=flat-square)](https://github.com/chirag127/sap-cpq-automation)
 [![License](https://img.shields.io/github/license/chirag127/sap-cpq-automation?style=flat-square)](LICENSE)
-[![GH Pages](https://img.shields.io/badge/site-live-brightgreen?style=flat-square)](https://chirag127.github.io/sap-cpq-automation/)
+[![GH Pages](https://img.shields.io/badge/site-live-brightgreen?style=flat-square)](https://sap-cpq-automation.oriz.in)
 
 Python automation scripts for SAP CPQ (Configure, Price, Quote) — bulk category creation, product import, and data conversion utilities.
 
-## Live Site
-
-https://chirag127.github.io/sap-cpq-automation/
+**Live:** https://sap-cpq-automation.oriz.in
 
 ## Scripts
 
